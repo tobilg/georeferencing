@@ -1,0 +1,214 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run: run all checks and `npm publish --dry-run`, without publishing. Pages deploy only from pushed tags.'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+env:
+  # npm trusted publishing requires Node.js 22.14+ and npm 11.5.1+.
+  PUBLISH_NODE_VERSION: '24'
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      npm_tag: ${{ steps.version.outputs.npm_tag }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      dry_run: ${{ steps.version.outputs.dry_run }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Determine version and npm dist-tag
+        id: version
+        env:
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          VERSION=$(node -p 'require("./packages/core/package.json").version')
+          for pkg in plugins react; do
+            OTHER=$(node -p "require('./packages/$pkg/package.json').version")
+            if [ "$OTHER" != "$VERSION" ]; then
+              echo "::error::@georeferencing/$pkg is $OTHER but @georeferencing/core is $VERSION. All packages must share one version."
+              exit 1
+            fi
+          done
+
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            if [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
+              echo "::error::Tag $GITHUB_REF_NAME does not match package version v$VERSION. Update the package versions before tagging."
+              exit 1
+            fi
+          elif [ "$DRY_RUN" != "true" ]; then
+            echo "::error::Real releases must run on a v* tag. Push a tag, or run this workflow as a dry run."
+            exit 1
+          fi
+
+          # 1.2.3-alpha.4 -> alpha; 1.2.3 -> latest
+          if [[ "$VERSION" == *-* ]]; then
+            PRERELEASE_ID="${VERSION#*-}"
+            NPM_TAG="${PRERELEASE_ID%%.*}"
+            PRERELEASE=true
+          else
+            NPM_TAG=latest
+            PRERELEASE=false
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "npm_tag=$NPM_TAG" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+          echo "dry_run=$DRY_RUN" >> "$GITHUB_OUTPUT"
+          echo "Release $VERSION (npm tag: $NPM_TAG, dry run: $DRY_RUN)"
+
+  ci:
+    needs: version
+    uses: ./.github/workflows/ci.yml
+
+  publish-npm:
+    runs-on: ubuntu-latest
+    needs: [version, ci]
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing (OIDC); no NPM_TOKEN is used
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      NPM_TAG: ${{ needs.version.outputs.npm_tag }}
+      DRY_RUN: ${{ needs.version.outputs.dry_run }}
+    steps:
+      - name: Download npm packages verified by CI
+        uses: actions/download-artifact@v8
+        with:
+          name: npm-packages
+          path: packages
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.PUBLISH_NODE_VERSION }}
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Update npm
+        run: npm install -g npm@latest && npm --version
+
+      # Core first: plugins and react depend on it.
+      - name: Publish packages
+        run: |
+          # Unauthenticated registry lookups: 200 = exists, 404 = not published yet.
+          registry_status() {
+            curl -sS -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/${1/\//%2f}"
+          }
+          for pkg in core plugins react; do
+            NAME="@georeferencing/$pkg"
+            TARBALL="packages/georeferencing-$pkg-$VERSION.tgz"
+            test -f "$TARBALL" || { echo "::error::Missing $TARBALL"; exit 1; }
+            if [ "$DRY_RUN" = "true" ]; then
+              npm publish "$TARBALL" --access public --tag "$NPM_TAG" --dry-run
+            elif [ "$(registry_status "$NAME/$VERSION")" = "200" ]; then
+              echo "$NAME@$VERSION is already published; skipping."
+            else
+              npm publish "$TARBALL" --access public --tag "$NPM_TAG"
+            fi
+          done
+
+      - name: Summary
+        run: |
+          {
+            echo "## npm packages"
+            echo
+            echo "**Version:** $VERSION · **dist-tag:** $NPM_TAG · **dry run:** ${DRY_RUN:-false}"
+            echo
+            for pkg in core plugins react; do
+              echo "- [@georeferencing/$pkg@$VERSION](https://www.npmjs.com/package/@georeferencing/$pkg/v/$VERSION)"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Cloudflare Pages are updated only by pushed release tags (v*), never by
+  # manual runs, so the sites always match a published npm release.
+  deploy-pages:
+    name: deploy-pages (${{ matrix.site }})
+    runs-on: ubuntu-latest
+    needs: [version, publish-npm]
+    if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && needs.version.outputs.dry_run != 'true' }}
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      deployments: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # CI artifact name -> Pages project (custom domain)
+          - site: documentation
+            project: georeferencing-api-docs # georeferencing-api-docs.gh.tobilg.com
+          - site: demo
+            project: georeferencing-demo # georeferencing-demo.gh.tobilg.com
+    steps:
+      - name: Download ${{ matrix.site }} site verified by CI
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.site }}
+          path: site
+
+      - name: Validate Cloudflare credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Missing CLOUDFLARE_API_TOKEN secret"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Missing CLOUDFLARE_ACCOUNT_ID secret"; exit 1; }
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy site --project-name ${{ matrix.project }} --branch main --commit-hash ${{ github.sha }} --commit-message "${{ github.ref_name }}"
+
+  github-release:
+    runs-on: ubuntu-latest
+    needs: [version, publish-npm]
+    if: ${{ github.event_name == 'push' }}
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Download npm packages
+        uses: actions/download-artifact@v8
+        with:
+          name: npm-packages
+          path: packages
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: packages/georeferencing-*.tgz
+          prerelease: ${{ needs.version.outputs.prerelease == 'true' }}
+          generate_release_notes: true
+          body: |
+            ## Georeferencing v${{ needs.version.outputs.version }}
+
+            Install the same version of every package:
+
+            ```sh
+            npm install @georeferencing/core@${{ needs.version.outputs.version }} @georeferencing/plugins@${{ needs.version.outputs.version }} @georeferencing/react@${{ needs.version.outputs.version }}
+            ```
+
+            - [`@georeferencing/core`](https://www.npmjs.com/package/@georeferencing/core/v/${{ needs.version.outputs.version }})
+            - [`@georeferencing/plugins`](https://www.npmjs.com/package/@georeferencing/plugins/v/${{ needs.version.outputs.version }})
+            - [`@georeferencing/react`](https://www.npmjs.com/package/@georeferencing/react/v/${{ needs.version.outputs.version }})
+
+            Documentation: https://georeferencing-api-docs.gh.tobilg.com
+            Demo: https://georeferencing-demo.gh.tobilg.com
