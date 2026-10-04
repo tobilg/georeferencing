@@ -75,11 +75,11 @@ test("AC-01–20: image → affine → confirm → mixed drawings → host save;
   await page.getByRole("button", { name: "Point", exact: true }).click();
   await click(220, 220);
   await click(280, 260);
-  await page.getByRole("button", { name: "LineString", exact: true }).click();
+  await page.getByRole("button", { name: "Line", exact: true }).click();
   await click(180, 200);
   await click(220, 300);
   await page.mouse.dblclick(box.x + 300, box.y + 280);
-  await page.getByRole("button", { name: "Polygon", exact: true }).click();
+  await page.getByRole("button", { name: "Area", exact: true }).click();
   await click(320, 200);
   await click(430, 200);
   await click(400, 320);
@@ -105,7 +105,9 @@ test("AC-01–20: image → affine → confirm → mixed drawings → host save;
   await page
     .getByRole("button", { name: "Save features", exact: true })
     .click();
-  await expect(page.getByText("Saved by host.", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Features saved.", { exact: true }),
+  ).toBeVisible();
   const original = await page.evaluate(
     () =>
       window.validation.editors[0].controller.getSnapshot().document.features,

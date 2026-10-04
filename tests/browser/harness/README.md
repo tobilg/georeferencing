@@ -23,6 +23,7 @@ the affected package after changing library code, or run its development watcher
 | --- | --- | --- |
 | `/validation.html` | Two independent React Strict Mode editors, borrowed host layers, projection/reference checks, drawing and saving | `window.validation` |
 | `/validation.html?editors=1` | Single editor with normal Save/Discard/Cancel guards for complete workflow and export tests | `window.validation` |
+| `/guided.html` | Guided four-step editor with the minimal default controls; `?controls=all` enables every optional control | `window.guided` |
 | `/engine.html` | File inspection, fitting, preview and real GeoTIFF encoding in workers | `window.engine`, `window.runEngine`, `window.encodeRaster` |
 
 The engine page accepts a local image. Its synthetic control points exercise the
@@ -43,7 +44,8 @@ pnpm test:browser
 ```
 
 Playwright builds the packages and starts two servers: the Hamburg demo on port
-5173 and this harness on port 5174. Only `guided.spec.ts` targets the demo; the
+5173 and this harness on port 5174. Only `guided.spec.ts` targets the demo, and
+`controls.spec.ts` targets `/guided.html`; the
 remaining browser specs target these harness pages. Guided tests replace OSM tile
 requests with deterministic fixtures. Both servers are shut down after the run
 unless Playwright reused servers that were already running.

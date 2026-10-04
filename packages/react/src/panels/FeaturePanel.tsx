@@ -5,6 +5,15 @@ import { useGeoreferencer } from "../hooks/useGeoreferencer.js";
 import type { Translate } from "../localization.js";
 import { identity } from "../localization.js";
 
+/** Plain-language names for drawing tools and the geometry types they create. */
+const TOOL_LABELS: Record<string, string> = {
+  Point: "Point",
+  LineString: "Line",
+  Polygon: "Area",
+  modify: "Edit shapes",
+  navigate: "Pan map",
+};
+
 /**
  * Opt-in digitizing controls, feature deletion and host property editing. Returns null when digitizing is disabled; controller.save performs explicit persistence.
  *
@@ -58,25 +67,19 @@ export function FeaturePanel({
             aria-pressed={s.tool === tool}
             onClick={() => controller.setTool(tool)}
           >
-            {t(
-              tool === "modify"
-                ? "Edit vertices"
-                : tool === "navigate"
-                  ? "Pan map"
-                  : tool,
-            )}
+            {t(TOOL_LABELS[tool])}
           </button>
         ))}
       </div>
-      <small>
+      <p className="rg-hint">
         {t(
-          "Double-click to finish lines/polygons. Escape cancels. Select a feature to edit vertices; Alt-click a vertex to remove it.",
+          "Double-click to finish lines and areas. Escape cancels. Use Edit shapes to move vertices; Alt-click a vertex to remove it.",
         )}
-      </small>
+      </p>
       {d.features.features.map((f, i) => (
         <div className="rg-feature" key={f.id}>
           <span>
-            {i + 1} · {f.geometry.type} · {String(f.id).slice(0, 8)}
+            {i + 1} · {t(TOOL_LABELS[f.geometry.type])}
           </span>
           <button
             type="button"
@@ -119,8 +122,8 @@ export function FeaturePanel({
         {s.saving === "succeeded"
           ? t(
               s.dirty
-                ? "Snapshot saved; newer changes remain unsaved."
-                : "Saved by host.",
+                ? "Saved. Newer changes are not saved yet."
+                : "Features saved.",
             )
           : s.saving === "failed"
             ? t("Save failed. Draft retained; retry when ready.")
@@ -128,7 +131,7 @@ export function FeaturePanel({
               ? t(
                   "No host save adapter configured. Session export remains available.",
                 )
-              : t("Saving features does not require raster export.")}
+              : t("Draw on the map, then save your features.")}
       </p>
     </section>
   );

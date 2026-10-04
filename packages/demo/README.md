@@ -5,8 +5,9 @@ Private React 19/Vite application demonstrating the public APIs of
 It is a runnable host integration and is not published to npm. Try it at
 **https://georeferencing-demo.gh.tobilg.com**.
 
-The main app is a guided Hamburg harbour example: choose an image, select matching
-image/map locations, explicitly run alignment, review, then export or draw. It
+The main app is a guided Hamburg harbour example in four steps: load an image,
+match points, check the alignment, then export or draw. It uses the minimal
+default controls of the guided `Georeferencer` layout. It
 owns an OpenLayers map and enables export plugins and a labeled browser-local save
 adapter. Image processing runs locally in workers. Automated test harnesses live
 separately under [`tests/browser/harness`](../../tests/browser/harness/README.md).
@@ -48,26 +49,22 @@ public entry points used by npm consumers, rather than private source aliases.
    on the map. The instruction and active view advance automatically. Repeat for
    at least three well-distributed, noncollinear pairs for the default affine model.
    Quay corners and bridge ends work better than boats, shadows or elevated roofs.
-3. Choose **Run alignment**. The demo defaults to **Manual** preview, so collecting
-   pairs does not start fitting. **Automatic** updates previews after eligible
-   committed edits; choose **Review alignment** when ready to review.
-4. Inspect overlay opacity and residuals. **Edit points** permits corrections;
-   edits clear stale results and manual mode requires another run. Rank/domain
-   errors remain actionable; minimum point count alone is not proof of validity.
-5. Expand **Raster output & session files** to configure/export GeoTIFF, JPEG,
-   PDF or supplementary artifacts. Export does not require digitizing.
-6. Choose **Confirm alignment and draw** for optional points, lines and polygons.
-   Edit/delete them and save through the demo adapter. Returning to alignment keeps
-   drawings geographically anchored and requires renewed review before saving.
-7. Replace/remove the image to exercise Save/Discard/Cancel while preserving the
-   map view. Session files and draft saving remain available before alignment.
+3. Choose **Run alignment**. The demo uses manual preview, so collecting points
+   does not start fitting.
+4. Check the overlay on the map and the accuracy summary. A fourth point lets the
+   demo measure accuracy. **Adjust points** goes back; edits clear stale results
+   and require another run. **Looks good, continue** confirms the alignment.
+5. Download GeoTIFF, JPEG, a PDF report or other files, or draw points, lines and
+   areas and choose **Save features**. Saved features stay in this browser's
+   localStorage. **Back to check** returns; drawings stay geographically anchored
+   and need renewed review before saving.
+6. Replace or remove the image to exercise Save/Discard/Cancel while preserving
+   the map view.
 
 Both viewers remain side by side on desktop, including 1024 px-wide screens.
 Below 720 px, explicit Image/Map buttons follow the pending pair; the map and
-image state stay mounted. Shift-drag pans while matching, Escape cancels a pending
-pair, and the **Pan image**/**Match points** tools make the active interaction explicit.
-Developer diagnostics and save-failure injection are
-under **Developer tools & demo persistence**.
+image state stay mounted. In both views, drag to pan and scroll to zoom; a click
+without dragging places a point. Escape cancels a pending point.
 
 The image picker/drop zone accepts up to 25 MiB, subject to the core decoded-pixel
 and memory budgets. Unsupported inputs or degenerate fits are reported explicitly.
@@ -200,9 +197,9 @@ for regeneration prerequisites; normal regression tests use committed reference 
 | Sibling code edits are not reflected | Use root `pnpm dev`, or rebuild the affected package |
 | Port already in use | Select a free port with `--port … --strictPort` |
 | No overlay while collecting pairs | In Manual mode, complete enough pairs and choose Run alignment |
-| Map tiles fail to load | Check the network and choose Retry map tiles; manual coordinate entry remains available |
+| Map tiles fail to load | Check the network and choose Retry map tiles |
 | Image appears misplaced | Check ground-level correspondences and spatial distribution, then rerun; map bounds never georeference the source |
-| Save fails | Check the intentional failure toggle, browser storage permissions/quota and visible errors |
+| Save fails | Check browser storage permissions/quota and visible errors |
 | Export controls absent or a worker fails | Check `exports.ts`, package builds, emitted asset URLs and CSP |
 
 The application source follows the repository's MIT license. Example imagery retains

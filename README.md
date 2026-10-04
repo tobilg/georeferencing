@@ -103,6 +103,12 @@ document behind its back. Keep it across remounts, and call
 session is permanently closed. `onSave` must resolve only after durable storage
 and reject on failure; retries reuse the same request ID.
 
+For first-time users, pass your map's rendered target as `referenceView` to get
+the guided four-step layout (load, match, check, export/draw) with minimal
+controls, and enable expert controls one by one with the `controls` prop. The
+[live demo](https://georeferencing-demo.gh.tobilg.com) uses this layout; see the
+[React README](packages/react/README.md#guided-four-step-layout).
+
 ## Documentation
 
 | Guide | Covers |

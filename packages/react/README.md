@@ -149,35 +149,88 @@ sidecars. Export completion never acknowledges host persistence. See the
 [plugins README](https://github.com/tobilg/georeferencing/blob/main/packages/plugins/README.md)
 for format settings, cancellation and limits.
 
-## Guided matching and preview policy
+## Guided four-step layout
 
-The Hamburg demo uses `previewMode: "manual"` in its core controller. The visible
-**Preview updates** selector changes that policy through `setPreviewMode`.
-`PreviewControls` is also exported for custom layouts; it displays minimum-point
-readiness and an explicit **Run alignment** action. Worker validation reports
-singular or unusable arrangements when a run is requested. Automatic mode updates
-eligible previews after committed edits without advancing the user's review step.
-
-Supply `referenceView` to `Georeferencer` to opt into the guided layout. It is a
-React node containing the host's map target and optional map controls; the host
-still owns the map and must attach its target before editor effects run (a React
-callback ref is suitable). Without this prop, the existing panel layout remains.
-See the [complete demo host](https://github.com/tobilg/georeferencing/blob/main/packages/demo/main.tsx)
+Supply `referenceView` to `Georeferencer` to use the guided layout. It is a React
+node containing the host's map target and optional map controls; the host still
+owns the map and must attach its target before editor effects run (a React
+callback ref is suitable). Without this prop, the classic workbench with every
+control remains. See the
+[complete demo host](https://github.com/tobilg/georeferencing/blob/main/packages/demo/main.tsx)
 for a typed integration with target attachment and cleanup.
 
-The guided layout automatically starts image-first/map-second matching after an
-accepted image load, announces the next endpoint, supports Escape to cancel an
-incomplete pair, and keeps both views side by side on desktop. Below 720 px,
-image/map buttons switch the visible pane and follow pending pairs without
-unmounting either viewer. The sticky run toolbar remains accessible while editing
-the point table. After running, review the overlay and residuals, edit/rerun as
-needed, then export or explicitly accept alignment to draw. Drawing controls are
-shown after acceptance; session files remain available during unfinished work.
+The guided layout leads users through four steps, each with one main action in a
+sticky bar:
 
-`AlignmentPanel` accepts `controls={false}` when transformation and preview
-controls are already rendered elsewhere. `PreviewControls.onReview` is called
-only for a successful preview matching the requested document/alignment revision.
-These panels never take map or engine ownership.
+1. **Load image**: drop zone with **Choose image** and any `emptyImageActions`
+   (for example a sample-image button).
+2. **Match points**: click a spot in the image, then the same spot on the map.
+   Progress shows how many points the model needs; **Run alignment** fits them.
+3. **Check alignment**: the overlay on the map, a plain-language accuracy summary
+   (average residual in image pixels, or a hint to add a point when the fit is
+   exact) and the point list. **Adjust points** goes back; **Looks good, continue**
+   confirms the alignment.
+4. **Export or draw**: download buttons for the configured formats and, with
+   `digitizing`, drawing tools and **Save features**. **Back to check** returns.
+
+Completed steps in the step bar are clickable. Desktop keeps both views side by
+side; below 720 px, Image/Map buttons switch panes and follow pending points.
+In both views, dragging pans and scrolling zooms; a click without dragging places
+a point.
+
+OpenLayers' `Map` creates its default interactions with `onFocusOnly: true`. If
+the map target has a `tabindex` (for keyboard navigation), mouse panning and wheel
+zoom then only work after the map has focus. Create the host map with
+`interactions: defaults({ onFocusOnly: false })` from `ol/interaction/defaults.js`,
+as the demo does, so both work immediately.
+
+### Choose the controls
+
+The guided layout starts minimal. Add expert controls individually with
+`controls`; omitted flags fall back to `MINIMAL_CONTROLS`:
+
+```tsx
+import { ALL_CONTROLS, Georeferencer } from "@georeferencing/react";
+
+<Georeferencer
+  controller={controller}
+  referenceMap={map}
+  referenceView={mapView}
+  controls={{ transformation: true, outputSettings: true }}
+/>;
+// Every control: controls={ALL_CONTROLS}
+```
+
+| Flag | Default | Adds |
+| --- | --- | --- |
+| `history` | on | Undo and redo |
+| `previewMode` | off | Manual/automatic preview selector (otherwise the controller's `previewMode` applies) |
+| `transformation` | off | Transformation model selector while matching |
+| `pointTable` | off | Full point table with editable coordinates, CRS and residuals (otherwise a compact list) |
+| `manualEntry` | off | Add a point pair by typing coordinates, the keyboard alternative to clicking |
+| `navigation` | off | Previous/next image and map views, linked navigation |
+| `displayAdjustment` | off | Brightness, contrast and histogram stretch |
+| `referenceStatus` | off | Load status of reference providers |
+| `outputSettings` | off | Raster output CRS, resampling, compression, no-data, pixel size and bounds |
+| `sessionFiles` | off | Restore session, import `.points`, save draft and early session downloads |
+| `unsavedIndicator` | off | Unsaved-changes indicator |
+
+Enable `manualEntry` when keyboard-only point entry is required.
+
+### Preview policy and panels
+
+`previewMode: "manual"` on the controller waits for **Run alignment**;
+`"automatic"` updates eligible previews after committed edits without advancing
+the user's step. Worker validation reports singular or unusable arrangements when
+a run is requested.
+
+The composable panels keep every control by default and accept the same opt-outs:
+`GcpPanel` takes `variant` (`"table"` or `"compact"`), `manualEntry` and `tools`;
+`ImagePanel` takes `navigation`, `displayAdjustment` and `emptyActions`;
+`PreviewControls` takes `modeSelector` and calls `onReview` only for a successful
+preview matching the requested revision. `AlignmentPanel` accepts
+`controls={false}` when transformation and preview controls are rendered
+elsewhere. These panels never take map or engine ownership.
 
 ## References, projections and snapping
 

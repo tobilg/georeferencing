@@ -1,5 +1,6 @@
 import type { GeoreferencerController, Model } from "@georeferencing/core";
 import { coordinateUnits, MODELS } from "@georeferencing/core";
+import { exactFit } from "../components/accuracy.js";
 import { useGeoreferencer } from "../hooks/useGeoreferencer.js";
 import type { Translate } from "../localization.js";
 import { identity } from "../localization.js";
@@ -53,16 +54,25 @@ export function AlignmentPanel({
             ? `${t("RMSE")} ${s.fit.rmse.toPrecision(4)} ${coordinateUnits(d.workingCrs)} · ${d.workingCrs}`
             : t("Add distributed points to fit the image.")}
       </p>
-      {d.workingCrs === "EPSG:3857" && (
-        <small>
-          {t("Web Mercator units are projected metres, not ground distances.")}
-        </small>
+      {s.fit && exactFit(d.model, d.gcps) && (
+        <p className="rg-hint">
+          {t(
+            d.model === "thinPlateSpline"
+              ? "Thin plate spline passes through every point, so residuals cannot measure accuracy."
+              : "With the minimum number of points the fit matches them exactly. Add another point to measure accuracy.",
+          )}
+        </p>
       )}
-      <small>
+      {d.workingCrs === "EPSG:3857" && (
+        <p className="rg-hint">
+          {t("Web Mercator units are projected metres, not ground distances.")}
+        </p>
+      )}
+      <p className="rg-hint">
         {t(
           "RMSE = √(Σ‖T(p) − q‖² / enabled points). Training residuals do not measure independent accuracy. Preview uses reduced-resolution pixels.",
         )}
-      </small>
+      </p>
       <label className="rg-inline">
         <input
           type="checkbox"
@@ -104,9 +114,7 @@ export function AlignmentPanel({
         </button>
       )}
       {d.confirmedAlignmentRevision === d.alignmentRevision && (
-        <p>
-          {t("Alignment confirmed")} · r{d.alignmentRevision}
-        </p>
+        <p>{t("Alignment confirmed")}</p>
       )}
     </section>
   );

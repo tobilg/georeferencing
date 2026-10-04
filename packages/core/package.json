@@ -1,6 +1,6 @@
 {
   "name": "@georeferencing/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Headless browser georeferencing state, transforms, image processing and OpenLayers integration",
   "license": "MIT",
   "type": "module",

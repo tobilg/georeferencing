@@ -13,6 +13,8 @@ export type {
   SaveEnvelope,
 } from "@georeferencing/core";
 export { createDocument, GeoreferencerController } from "@georeferencing/core";
+export type { GeoreferencerControls } from "./controls.js";
+export { ALL_CONTROLS, MINIMAL_CONTROLS } from "./controls.js";
 export type { GeoreferencerProps } from "./Georeferencer.js";
 export { Georeferencer } from "./Georeferencer.js";
 export { useGeoreferencer } from "./hooks/useGeoreferencer.js";

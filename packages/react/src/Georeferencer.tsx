@@ -3,15 +3,22 @@ import type {
   GeoreferencerController,
   GuardContext,
   Model,
-  Resampler,
 } from "@georeferencing/core";
-import { coordinateUnits, importPoints, MODELS } from "@georeferencing/core";
+import { MODELS } from "@georeferencing/core";
 import type { BindingOptions } from "@georeferencing/core/openlayers";
 import { attachReferenceMap } from "@georeferencing/core/openlayers";
 import type OLMap from "ol/Map.js";
 import type { ReactNode } from "react";
 import { useEffect, useId, useRef, useState } from "react";
-import { NumberField, TextField } from "./components/fields.js";
+import { AccuracySummary } from "./components/accuracy.js";
+import {
+  ExportButtons,
+  ExportProgress,
+  OutputFields,
+  SessionTools,
+} from "./components/exports.js";
+import type { GeoreferencerControls } from "./controls.js";
+import { MINIMAL_CONTROLS } from "./controls.js";
 import { useGeoreferencer } from "./hooks/useGeoreferencer.js";
 import type { Translate } from "./localization.js";
 import { identity } from "./localization.js";
@@ -21,9 +28,9 @@ import { GcpPanel } from "./panels/GcpPanel.js";
 import { ImagePanel } from "./panels/ImagePanel.js";
 import { PreviewControls } from "./panels/PreviewControls.js";
 import { ReferencePanel } from "./panels/ReferencePanel.js";
-import { downloadBlob } from "./utils/downloadBlob.js";
 
 const DEFAULT_BINDING: BindingOptions = {};
+const NO_CONTROLS: Partial<GeoreferencerControls> = {};
 
 /**
  * Integration props for the ready-made editor. Keep controller, map and binding
@@ -31,11 +38,23 @@ const DEFAULT_BINDING: BindingOptions = {};
  */
 export interface GeoreferencerProps {
   /**
-   * Opt into a guided matching/review layout by supplying the host map's rendered
-   * target and controls. The host still creates, targets and disposes the map. This
-   * slot stays mounted across matching/review and responsive image/map tabs.
+   * Opt into the guided four-step layout (load, match, check, export/draw) by supplying
+   * the host map's rendered target and controls. The host still creates, targets and
+   * disposes the map. This slot stays mounted across all steps and responsive
+   * image/map tabs.
    */
   referenceView?: ReactNode;
+  /**
+   * Optional controls of the guided layout. Omitted flags use {@link MINIMAL_CONTROLS};
+   * pass {@link ALL_CONTROLS} for every expert control. The classic layout always shows
+   * all controls.
+   */
+  controls?: Partial<GeoreferencerControls>;
+  /**
+   * Extra actions shown in the empty image drop zone next to "Choose image", for example
+   * a button that loads a sample image.
+   */
+  emptyImageActions?: ReactNode;
   /**
    * Host-owned authoritative controller; the component resumes/suspends it but does not
    * permanently dispose it.
@@ -79,7 +98,7 @@ export interface GeoreferencerProps {
 /**
  * Ready-made React editor for an existing OpenLayers map. Composes image, GCP, alignment, reference, output and optional drawing controls.
  *
- * Its effects attach/detach owned map resources and resume/suspend the controller for React Strict Mode. It installs a Save/Discard/Cancel guard and cancels pending dialogs on cleanup. The host retains final ownership of map, controller and engine. Import the optional scoped stylesheet from `@georeferencing/react/styles.css`.
+ * Supplying `referenceView` selects the guided four-step layout, whose optional controls are chosen with `controls`; otherwise the classic workbench shows every control. Its effects attach/detach owned map resources and resume/suspend the controller for React Strict Mode. It installs a Save/Discard/Cancel guard and cancels pending dialogs on cleanup. The host retains final ownership of map, controller and engine. Import the optional scoped stylesheet from `@georeferencing/react/styles.css`.
  */
 export function Georeferencer({
   controller,
@@ -91,6 +110,8 @@ export function Georeferencer({
   onExport,
   formatError,
   referenceView,
+  controls: controlOverrides = NO_CONTROLS,
+  emptyImageActions,
 }: GeoreferencerProps) {
   const guardTitle = useId();
   const s = useGeoreferencer(controller),
@@ -99,27 +120,28 @@ export function Georeferencer({
       context: GuardContext;
       resolve: (choice: "save" | "discard" | "cancel") => void;
     } | null>(null),
-    dialog = useRef<HTMLDialogElement>(null),
-    sessionInput = useRef<HTMLInputElement>(null);
-  const pendingSession = useRef<string | null>(null);
+    dialog = useRef<HTMLDialogElement>(null);
   const guided = referenceView !== undefined;
-  const [editing, setEditing] = useState(true);
-  const [reviewedDocumentRevision, setReviewedDocumentRevision] = useState<
-    number | null
-  >(null);
+  const controls = { ...MINIMAL_CONTROLS, ...controlOverrides };
+  const [stage, setStage] = useState<"match" | "review" | "finish">("match");
   const [mobileView, setMobileView] = useState<"image" | "map">("image");
-  const imageId = s.document.sourceImage?.id;
+  const d = s.document;
+  const imageId = d.sourceImage?.id;
   const imageReady = Boolean(s.imageUrl);
-  const review = !!s.fit && !editing;
-  const visibleFormats = s.exportFormats.filter(
-    (format) =>
-      !guided || review || s.mode === "draw" || format.requiresFit === false,
-  );
-  const nextPoint = Math.max(0, ...s.document.gcps.map((p) => p.label)) + 1;
+  const confirmed = d.confirmedAlignmentRevision === d.alignmentRevision;
+  // 0 load image · 1 match points · 2 check alignment · 3 export or draw
+  const step = !imageReady
+    ? 0
+    : s.mode === "draw" || (stage === "finish" && confirmed && s.fit)
+      ? 3
+      : stage !== "match" && s.fit
+        ? 2
+        : 1;
+  const nextPoint = Math.max(0, ...d.gcps.map((p) => p.label)) + 1;
+  const hasWork = d.gcps.length > 0 || d.features.features.length > 0;
   useEffect(() => {
     if (!guided) return;
-    setEditing(true);
-    setReviewedDocumentRevision(null);
+    setStage("match");
     setMobileView("image");
     // A metadata-only restored document still needs its matching local bytes.
     if (imageId && imageReady && controller.getSnapshot().mode === "align")
@@ -128,6 +150,11 @@ export function Georeferencer({
   useEffect(() => {
     if (guided) setMobileView(s.pendingImagePoint ? "map" : "image");
   }, [guided, s.pendingImagePoint]);
+  // Matching always uses the point tool; dragging pans, so no separate pan mode is needed.
+  useEffect(() => {
+    if (guided && step === 1 && s.tool !== "gcp" && s.mode === "align")
+      controller.setTool("gcp");
+  }, [controller, guided, step, s.tool, s.mode]);
   useEffect(() => {
     if (guided && mobileView === "map") referenceMap.updateSize();
   }, [guided, mobileView, referenceMap]);
@@ -179,6 +206,149 @@ export function Georeferencer({
       controller.reportError(e);
     }
   };
+  const error = s.error
+    ? s.errorDetail && formatError
+      ? formatError(s.errorDetail)
+      : t(s.error)
+    : null;
+  const unsaved = (
+    <span className="rg-dirty">
+      {t(s.dirty && hasWork ? "Unsaved changes" : "No unsaved changes")}
+    </span>
+  );
+  const goToMatching = () =>
+    run(() => {
+      if (controller.getSnapshot().mode === "draw")
+        controller.returnToAlignment();
+      setStage("match");
+      setMobileView("image");
+      controller.setTool("gcp");
+    });
+  const goToReview = () =>
+    run(() => {
+      if (controller.getSnapshot().mode === "draw")
+        controller.returnToAlignment();
+      setStage("review");
+      setMobileView("map");
+      controller.setTool("navigate");
+    });
+  const finish = () =>
+    run(() => {
+      controller.confirm();
+      setStage("finish");
+      setMobileView("map");
+    });
+  const steps = [
+    "Load image",
+    "Match points",
+    "Check alignment",
+    controller.options.digitizing ? "Export or draw" : "Export",
+  ];
+  const instruction: [string, string] =
+    step === 0
+      ? [
+          "Choose an image to begin",
+          "Drop an image or choose a file. It stays on this device.",
+        ]
+      : step === 1
+        ? [
+            s.pendingImagePoint
+              ? `${t("Now click the same spot on the map")} · ${t("Point")} ${nextPoint}`
+              : `${t("Click a recognizable spot in the image")} · ${t("Point")} ${nextPoint}`,
+            stage !== "match"
+              ? s.previewMode === "manual"
+                ? "Points or settings changed. Run alignment again to check the result."
+                : "Alignment changed. Wait for the updated preview."
+              : "Use ground-level corners of buildings, quays or bridges, spread across the whole image. Drag to pan and scroll to zoom in both views; Esc cancels a point.",
+          ]
+        : step === 2
+          ? [
+              "Does the image line up with the map?",
+              "Compare roads, shorelines and building corners across the whole image. If something is off, adjust or add points.",
+            ]
+          : controller.options.digitizing
+            ? [
+                "Download the result or draw on the map",
+                "Your alignment is confirmed. Download files, or draw points, lines and areas on top of the aligned image.",
+              ]
+            : [
+                "Download the result",
+                "Your alignment is confirmed. Download the georeferenced image.",
+              ];
+  const primaryFormats = s.exportFormats.filter((format) => format.raster);
+  const otherFormats = s.exportFormats.filter((format) => !format.raster);
+  const toolRow =
+    (step === 1 || step === 3) &&
+    (controls.history ||
+      controls.navigation ||
+      controls.transformation ||
+      controls.unsavedIndicator ||
+      ["LineString", "Polygon"].includes(s.tool)) ? (
+      <div className="rg-toolbar rg-match-tools">
+        {step === 3 && ["LineString", "Polygon"].includes(s.tool) && (
+          <button
+            type="button"
+            onClick={() => binding.current?.finishDrawing()}
+          >
+            {t("Finish drawing")}
+          </button>
+        )}
+        {controls.history && (
+          <>
+            <button
+              type="button"
+              disabled={!s.canUndo}
+              onClick={() => controller.undo()}
+            >
+              {t("Undo")}
+            </button>
+            <button
+              type="button"
+              disabled={!s.canRedo}
+              onClick={() => controller.redo()}
+            >
+              {t("Redo")}
+            </button>
+          </>
+        )}
+        {controls.navigation && (
+          <>
+            <button
+              type="button"
+              onClick={() => binding.current?.navigateHistory(-1)}
+            >
+              {t("Previous map view")}
+            </button>
+            <button
+              type="button"
+              onClick={() => binding.current?.navigateHistory(1)}
+            >
+              {t("Next map view")}
+            </button>
+          </>
+        )}
+        {(controls.transformation || controls.unsavedIndicator) && (
+          <div className="rg-tools-end">
+            {controls.transformation && step === 1 && (
+              <label className="rg-inline-field">
+                {t("Transformation")}
+                <select
+                  value={d.model}
+                  onChange={(e) => controller.setModel(e.target.value as Model)}
+                >
+                  {Object.entries(MODELS).map(([key, value]) => (
+                    <option key={key} value={key}>
+                      {t(value.label)} · {value.minimum}+
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {controls.unsavedIndicator && unsaved}
+          </div>
+        )}
+      </div>
+    ) : null;
   return (
     <section
       className={`rg-editor ${guided ? "rg-guided" : ""} ${className}`}
@@ -200,152 +370,108 @@ export function Georeferencer({
       {guided ? (
         <>
           <ol className="rg-steps" aria-label={t("Georeferencing steps")}>
-            {[
-              "Load image",
-              "Match points",
-              "Review alignment",
-              "Export or draw",
-            ].map((label, i) => (
-              <li
-                key={label}
-                aria-current={
-                  i === (!imageId ? 0 : s.mode === "draw" ? 3 : review ? 2 : 1)
-                    ? "step"
-                    : undefined
-                }
-              >
-                {i + 1}. {t(label)}
-              </li>
-            ))}
+            {steps.map((label, i) => {
+              const state = i < step ? "done" : i === step ? "current" : "todo";
+              const back =
+                i < step && i === 1
+                  ? goToMatching
+                  : i < step && i === 2
+                    ? goToReview
+                    : undefined;
+              const content = (
+                <>
+                  <span className="rg-step-index" aria-hidden="true">
+                    {state === "done" ? "✓" : i + 1}
+                  </span>
+                  <span className="rg-step-label">{t(label)}</span>
+                </>
+              );
+              return (
+                <li
+                  key={label}
+                  data-state={state}
+                  aria-current={state === "current" ? "step" : undefined}
+                >
+                  {back ? (
+                    <button
+                      type="button"
+                      className="rg-step-button"
+                      onClick={back}
+                    >
+                      {content}
+                    </button>
+                  ) : (
+                    content
+                  )}
+                </li>
+              );
+            })}
           </ol>
           <div className="rg-matching-bar">
             <div className="rg-instruction" role="status" aria-live="polite">
-              <strong>
-                {!imageReady
-                  ? t("Choose an image to begin")
-                  : s.mode === "draw"
-                    ? t("Draw features on the aligned map")
-                    : review
-                      ? t("Inspect the overlay against the reference map")
-                      : s.tool !== "gcp"
-                        ? t("Navigation active. Resume matching to add points.")
-                        : s.pendingImagePoint
-                          ? `${t("Select the matching location on the map")} · ${t("Point")} ${nextPoint}`
-                          : `${t("Select a point in the image")} · ${t("Point")} ${nextPoint}`}
-              </strong>
+              <strong>{t(instruction[0])}</strong>
               <p>
-                {t(
-                  reviewedDocumentRevision !== null &&
-                    reviewedDocumentRevision !== s.document.documentRevision &&
-                    !s.fit
-                    ? s.previewMode === "manual"
-                      ? "Points or settings changed. Run alignment again before reviewing or exporting."
-                      : "Alignment changed. Wait for the updated preview before reviewing."
-                    : review
-                      ? "Check landmarks across the image before exporting or accepting alignment."
-                      : "Match ground-level corners across the image. Shift-drag to pan; Escape cancels a pending pair.",
+                {t(instruction[1])}
+                {s.pendingImagePoint && (
+                  <>
+                    {" "}
+                    <button
+                      type="button"
+                      className="rg-link"
+                      onClick={() => controller.setPendingPoint(null)}
+                    >
+                      {t("Cancel this point")}
+                    </button>
+                  </>
                 )}
               </p>
             </div>
-            {!review && s.mode === "align" && (
-              <PreviewControls
-                controller={controller}
-                t={t}
-                onReview={() => {
-                  setEditing(false);
-                  setReviewedDocumentRevision(
-                    controller.getSnapshot().document.documentRevision,
-                  );
-                  setMobileView("map");
-                }}
-              />
-            )}
-            {review && s.mode === "align" && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing(true);
-                  controller.setTool("gcp");
-                }}
-              >
-                {t("Edit points")}
-              </button>
-            )}
+            <div className="rg-step-actions">
+              {step === 1 && (
+                <PreviewControls
+                  controller={controller}
+                  t={t}
+                  modeSelector={controls.previewMode}
+                  onReview={() => {
+                    setStage("review");
+                    setMobileView("map");
+                  }}
+                />
+              )}
+              {step === 2 && (
+                <>
+                  <button type="button" onClick={goToMatching}>
+                    {t("Adjust points")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => binding.current?.fitOverlay()}
+                  >
+                    {t("Zoom map to image")}
+                  </button>
+                  <button
+                    type="button"
+                    className="rg-primary"
+                    disabled={!s.fit || s.fitRevision !== d.alignmentRevision}
+                    onClick={finish}
+                  >
+                    {t("Looks good, continue")}
+                  </button>
+                </>
+              )}
+              {step === 3 && (
+                <button type="button" onClick={goToReview}>
+                  {t("Back to check")}
+                </button>
+              )}
+            </div>
           </div>
-          {s.error && (
+          {error && (
             <p className="rg-error" role="alert">
-              {s.errorDetail && formatError
-                ? formatError(s.errorDetail)
-                : t(s.error)}
+              {error}
             </p>
           )}
-          <div className="rg-toolbar rg-match-tools">
-            {["LineString", "Polygon"].includes(s.tool) && (
-              <button
-                type="button"
-                onClick={() => binding.current?.finishDrawing()}
-              >
-                {t("Finish drawing")}
-              </button>
-            )}
-            <button
-              type="button"
-              disabled={!imageReady || s.mode === "draw"}
-              aria-pressed={s.tool === "gcp"}
-              onClick={() => {
-                setEditing(true);
-                controller.setTool("gcp");
-              }}
-            >
-              {t("Match points")}
-            </button>
-            <button
-              type="button"
-              disabled={!imageReady || s.mode === "draw"}
-              aria-pressed={s.tool === "navigate"}
-              onClick={() => controller.setTool("navigate")}
-            >
-              {t("Pan image")}
-            </button>
-            <button
-              type="button"
-              disabled={!s.pendingImagePoint}
-              onClick={() => controller.setPendingPoint(null)}
-            >
-              {t("Cancel pending pair")}
-            </button>
-            <button
-              type="button"
-              disabled={!s.canUndo}
-              onClick={() => controller.undo()}
-            >
-              {t("Undo")}
-            </button>
-            <button
-              type="button"
-              disabled={!s.canRedo}
-              onClick={() => controller.redo()}
-            >
-              {t("Redo")}
-            </button>
-            <label>
-              {t("Transformation")}
-              <select
-                disabled={!imageId || s.mode === "draw"}
-                value={s.document.model}
-                onChange={(e) => controller.setModel(e.target.value as Model)}
-              >
-                {Object.entries(MODELS).map(([key, value]) => (
-                  <option key={key} value={key}>
-                    {t(value.label)} · {value.minimum}+
-                  </option>
-                ))}
-              </select>
-            </label>
-            <span className="rg-dirty">
-              {t(s.dirty ? "Unsaved changes" : "No unsaved changes")}
-            </span>
-          </div>
+          {toolRow}
           <fieldset className="rg-view-tabs" aria-label={t("Workspace view")}>
             <button
               type="button"
@@ -366,9 +492,17 @@ export function Georeferencer({
           <div className="rg-paired-views" data-mobile-view={mobileView}>
             <div
               className="rg-source-pane"
-              data-active={s.tool === "gcp" && !s.pendingImagePoint && !review}
+              data-active={
+                s.tool === "gcp" && !s.pendingImagePoint && step === 1
+              }
             >
-              <ImagePanel controller={controller} t={t} />
+              <ImagePanel
+                controller={controller}
+                t={t}
+                navigation={controls.navigation}
+                displayAdjustment={controls.displayAdjustment}
+                emptyActions={emptyImageActions}
+              />
             </div>
             <div
               className="rg-reference-pane"
@@ -377,44 +511,135 @@ export function Georeferencer({
               {referenceView}
             </div>
           </div>
-          {(review || s.mode === "draw") && (
+          {step === 2 && s.fit && (
             <div className="rg-review-panels">
-              <AlignmentPanel controller={controller} t={t} controls={false} />
-              {s.mode === "draw" && (
-                <FeaturePanel
-                  controller={controller}
-                  propertyEditor={propertyEditor}
+              <section className="rg-card">
+                <h2>{t("Accuracy")}</h2>
+                <AccuracySummary
+                  fit={s.fit}
+                  model={d.model}
+                  gcps={d.gcps}
+                  workingCrs={d.workingCrs}
                   t={t}
                 />
+                <label className="rg-inline">
+                  <input
+                    type="checkbox"
+                    checked={s.visible}
+                    onChange={(e) =>
+                      controller.setDisplay({ visible: e.target.checked })
+                    }
+                  />
+                  {t("Show aligned image on the map")}
+                </label>
+                <label>
+                  {t("Image opacity")}
+                  <input
+                    aria-label={t("Overlay opacity")}
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={s.opacity}
+                    onChange={(e) =>
+                      controller.setDisplay({
+                        opacity: Number(e.target.value),
+                      })
+                    }
+                  />
+                </label>
+              </section>
+              <GcpPanel
+                controller={controller}
+                t={t}
+                variant={controls.pointTable ? "table" : "compact"}
+                manualEntry={false}
+                tools={false}
+              />
+            </div>
+          )}
+          {step === 1 && (d.gcps.length > 0 || controls.manualEntry) && (
+            <GcpPanel
+              controller={controller}
+              t={t}
+              variant={controls.pointTable ? "table" : "compact"}
+              manualEntry={controls.manualEntry}
+              tools={false}
+            />
+          )}
+          {step === 3 && (
+            <div className="rg-review-panels">
+              {s.exportFormats.length > 0 && (
+                <section className="rg-card">
+                  <h2>{t("Download")}</h2>
+                  <ExportButtons
+                    controller={controller}
+                    t={t}
+                    formats={primaryFormats}
+                    onExport={onExport}
+                    primary={() => true}
+                    status={false}
+                  />
+                  {otherFormats.length > 0 && (
+                    <>
+                      <h3>{t("More downloads")}</h3>
+                      <ExportButtons
+                        controller={controller}
+                        t={t}
+                        formats={otherFormats}
+                        onExport={onExport}
+                        status={false}
+                      />
+                    </>
+                  )}
+                  <ExportProgress controller={controller} t={t} />
+                  {controls.outputSettings && primaryFormats.length > 0 && (
+                    <details>
+                      <summary>{t("Output settings")}</summary>
+                      <OutputFields
+                        controller={controller}
+                        t={t}
+                        definitions={bindingOptions.definitions}
+                      />
+                    </details>
+                  )}
+                </section>
+              )}
+              {controller.options.digitizing && (
+                <div className="rg-card">
+                  <FeaturePanel
+                    controller={controller}
+                    propertyEditor={propertyEditor}
+                    t={t}
+                  />
+                </div>
               )}
             </div>
           )}
-          <GcpPanel controller={controller} t={t} />
-          <details className="rg-advanced">
-            <summary>{t("Advanced navigation & reference status")}</summary>
-            <div className="rg-toolbar">
-              <button
-                type="button"
-                disabled={!s.preview}
-                onClick={() => binding.current?.fitOverlay()}
-              >
-                {t("Fit map to image")}
-              </button>
-              <button
-                type="button"
-                onClick={() => binding.current?.navigateHistory(-1)}
-              >
-                {t("Previous map view")}
-              </button>
-              <button
-                type="button"
-                onClick={() => binding.current?.navigateHistory(1)}
-              >
-                {t("Next map view")}
-              </button>
-            </div>
-            <ReferencePanel controller={controller} t={t} />
-          </details>
+          {controls.referenceStatus && (
+            <details className="rg-advanced">
+              <summary>{t("Reference sources")}</summary>
+              <ReferencePanel controller={controller} t={t} />
+            </details>
+          )}
+          {controls.sessionFiles && (
+            <details className="rg-export">
+              <summary>{t("Session files")}</summary>
+              {step < 3 && (
+                <ExportButtons
+                  controller={controller}
+                  t={t}
+                  formats={s.exportFormats.filter(
+                    (format) => format.requiresFit === false,
+                  )}
+                  onExport={onExport}
+                  status={false}
+                />
+              )}
+              {step < 3 && <ExportProgress controller={controller} t={t} />}
+              <SessionTools controller={controller} t={t} />
+            </details>
+          )}
         </>
       ) : (
         <>
@@ -423,9 +648,7 @@ export function Georeferencer({
               <span className="rg-eyebrow">{t("GEOREFERENCE")}</span>
               <h1>{t("Place the image. Trace the detail.")}</h1>
             </div>
-            <span className="rg-dirty">
-              {t(s.dirty ? "Unsaved changes" : "No unsaved changes")}
-            </span>
+            {unsaved}
           </header>
           <div className="rg-toolbar rg-history">
             <button
@@ -471,7 +694,11 @@ export function Georeferencer({
             )}
           </div>
           <div className="rg-workbench">
-            <ImagePanel controller={controller} t={t} />
+            <ImagePanel
+              controller={controller}
+              t={t}
+              emptyActions={emptyImageActions}
+            />
             <div className="rg-settings">
               <AlignmentPanel controller={controller} t={t} />
               <FeaturePanel
@@ -483,353 +710,38 @@ export function Georeferencer({
           </div>
           <ReferencePanel controller={controller} t={t} />
           <GcpPanel controller={controller} t={t} />
+          <details className="rg-export">
+            <summary>{t("Raster output & session files")}</summary>
+            {s.exportFormats.some((format) => format.raster) && (
+              <OutputFields
+                controller={controller}
+                t={t}
+                definitions={bindingOptions.definitions}
+              />
+            )}
+            <ExportButtons
+              controller={controller}
+              t={t}
+              formats={s.exportFormats}
+              onExport={onExport}
+            />
+            <SessionTools controller={controller} t={t} />
+          </details>
         </>
       )}
-      <details className="rg-export">
-        <summary>
-          {t(
-            guided && !review && s.mode !== "draw"
-              ? "Session files"
-              : "Raster output & session files",
-          )}
-        </summary>
-        {visibleFormats.some((format) => format.raster) && (
-          <div className="rg-output-fields">
-            <label>
-              {t("Output CRS")}
-              <TextField
-                label={t("Output CRS")}
-                value={s.document.output.crs}
-                change={(crs) =>
-                  run(() => {
-                    if (!crs) throw Error("Output CRS is required.");
-                    controller.setOutput({
-                      ...s.document.output,
-                      crs,
-                    });
-                  })
-                }
-              />
-            </label>
-            <label>
-              {t("Resampling")}
-              <select
-                value={s.document.output.resampler}
-                onChange={(e) =>
-                  controller.setOutput({
-                    ...s.document.output,
-                    resampler: e.target.value as Resampler,
-                  })
-                }
-              >
-                {["nearest", "bilinear", "cubic", "cubicSpline", "lanczos"].map(
-                  (m) => (
-                    <option key={m}>{m}</option>
-                  ),
-                )}
-              </select>
-            </label>
-            {s.exportFormats.some((format) => format.id === "geotiff") && (
-              <label>
-                {t("TIFF compression")}
-                <select
-                  value={s.document.output.compression ?? "none"}
-                  onChange={(e) =>
-                    controller.setOutput({
-                      ...s.document.output,
-                      compression: e.target.value as
-                        | "none"
-                        | "deflate"
-                        | "packbits",
-                      predictor:
-                        e.target.value === "deflate"
-                          ? s.document.output.predictor
-                          : 1,
-                    })
-                  }
-                >
-                  <option value="none">{t("Uncompressed")}</option>
-                  <option value="deflate">{t("Deflate (lossless)")}</option>
-                  <option value="packbits">{t("PackBits (lossless)")}</option>
-                </select>
-              </label>
-            )}
-            <label>
-              {t("Input no-data (byte or R,G,B; blank = alpha)")}
-              <TextField
-                label={t("Input no-data")}
-                value={
-                  Array.isArray(s.document.output.sourceNoData)
-                    ? s.document.output.sourceNoData.join(",")
-                    : String(s.document.output.sourceNoData ?? "")
-                }
-                change={(value) =>
-                  run(() => {
-                    const values = value.split(",").map(Number);
-                    if (
-                      value &&
-                      (![1, 3].includes(values.length) ||
-                        values.some(
-                          (v) => !Number.isInteger(v) || v < 0 || v > 255,
-                        ))
-                    )
-                      throw Error(
-                        "Input no-data requires one or three bytes (0–255).",
-                      );
-                    controller.setOutput({
-                      ...s.document.output,
-                      sourceNoData: value
-                        ? values.length === 1
-                          ? values[0]
-                          : (values as [number, number, number])
-                        : undefined,
-                    });
-                  })
-                }
-              />
-            </label>
-            {s.exportFormats.some((format) => format.id === "geotiff") && (
-              <label>
-                {t("Output no-data (byte; blank = alpha)")}
-                <TextField
-                  label={t("Output no-data")}
-                  value={String(s.document.output.noData ?? "")}
-                  change={(value) =>
-                    run(() => {
-                      const n = Number(value);
-                      if (value && (!Number.isInteger(n) || n < 0 || n > 255))
-                        throw Error("Output no-data requires a byte (0–255).");
-                      controller.setOutput({
-                        ...s.document.output,
-                        noData: value ? n : undefined,
-                      });
-                    })
-                  }
-                />
-              </label>
-            )}
-            {s.exportFormats.some((format) => format.id === "geotiff") && (
-              <>
-                <label>
-                  {t("Rows per TIFF strip")}
-                  <NumberField
-                    label={t("Rows per TIFF strip")}
-                    value={s.document.output.rowsPerStrip ?? 256}
-                    change={(n) =>
-                      run(() => {
-                        if (!Number.isInteger(n) || n < 1 || n > 4096)
-                          throw Error("Rows per strip must be 1–4096.");
-                        controller.setOutput({
-                          ...s.document.output,
-                          rowsPerStrip: n,
-                        });
-                      })
-                    }
-                  />
-                </label>
-                <label>
-                  {t("Horizontal TIFF predictor")}
-                  <input
-                    type="checkbox"
-                    disabled={s.document.output.compression !== "deflate"}
-                    checked={s.document.output.predictor === 2}
-                    onChange={(e) =>
-                      controller.setOutput({
-                        ...s.document.output,
-                        predictor: e.target.checked ? 2 : 1,
-                      })
-                    }
-                  />
-                </label>
-              </>
-            )}
-            <label>
-              {t("Pixel size (x,y; blank = estimated)")} ·{" "}
-              {coordinateUnits(
-                s.document.output.crs,
-                bindingOptions.definitions,
-              )}
-              <TextField
-                label={t("Pixel size")}
-                value={s.document.output.resolution?.join(",") ?? ""}
-                change={(value) =>
-                  run(() => {
-                    const values = value.split(",").map(Number);
-                    if (
-                      value &&
-                      (values.length > 2 ||
-                        values.some((v) => !Number.isFinite(v) || v <= 0))
-                    )
-                      throw Error(
-                        "Pixel size requires one or two positive numbers.",
-                      );
-                    controller.setOutput({
-                      ...s.document.output,
-                      resolution: value
-                        ? [values[0], values[1] ?? values[0]]
-                        : undefined,
-                    });
-                  })
-                }
-              />
-            </label>
-            <label>
-              {t("Output bounds (minX,minY,maxX,maxY; blank = footprint)")}
-              <TextField
-                label={t("Output bounds")}
-                value={s.document.output.bounds?.join(",") ?? ""}
-                change={(value) =>
-                  run(() => {
-                    const values = value.split(",").map(Number);
-                    if (
-                      value &&
-                      (values.length !== 4 ||
-                        values.some((v) => !Number.isFinite(v)) ||
-                        values[0] >= values[2] ||
-                        values[1] >= values[3])
-                    )
-                      throw Error(
-                        "Bounds require four finite numbers with min < max.",
-                      );
-                    controller.setOutput({
-                      ...s.document.output,
-                      bounds: value
-                        ? (values as [number, number, number, number])
-                        : undefined,
-                    });
-                  })
-                }
-              />
-            </label>
-          </div>
-        )}
-        {visibleFormats.length > 0 && (
-          <div className="rg-toolbar">
-            {visibleFormats.map((format) => {
-              const unavailable = controller.getExportUnavailable(format.id);
-              return (
-                <button
-                  key={format.id}
-                  type="button"
-                  data-export-format={format.id}
-                  title={unavailable ? t(unavailable) : undefined}
-                  disabled={Boolean(unavailable) || s.exporting === "running"}
-                  onClick={() =>
-                    void controller
-                      .export(format.id)
-                      .then(async (result) => {
-                        if (!result) return;
-                        if (onExport) await onExport(result);
-                        else
-                          for (const file of result.files)
-                            downloadBlob(file.blob, file.name);
-                      })
-                      .catch((error) => controller.reportError(error))
-                  }
-                >
-                  {t(format.label)}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              disabled={s.exporting !== "running"}
-              onClick={() => controller.cancelExport()}
-            >
-              {t("Cancel export")}
-            </button>
-          </div>
-        )}
-        {s.exporting === "running" && (
-          <progress
-            aria-label={t("Export progress")}
-            value={s.progress}
-            max="1"
-          />
-        )}
-        <div className="rg-toolbar">
-          <label className="rg-file">
-            {t("Restore session")}
-            <input
-              type="file"
-              aria-label={t("Restore session")}
-              accept=".json"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  pendingSession.current = await file.text();
-                  sessionInput.current?.click();
-                }
-                e.target.value = "";
-              }}
-            />
-          </label>
-          <input
-            ref={sessionInput}
-            aria-label={t("Matching session image")}
-            type="file"
-            hidden
-            accept="image/*,.tif,.tiff"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file && pendingSession.current)
-                void controller
-                  .restoreSession(pendingSession.current, file)
-                  .catch((e) => controller.reportError(e));
-              e.target.value = "";
-            }}
-          />
-
-          <label className="rg-file">
-            {t("Import .points")}
-            <input
-              type="file"
-              aria-label={t("Import .points")}
-              accept=".points,.csv"
-              disabled={!s.document.sourceImage || s.mode === "draw"}
-              onChange={async (e) => {
-                const f = e.target.files?.[0];
-                if (f) {
-                  try {
-                    const imported = importPoints(
-                      await f.text(),
-                      s.document.workingCrs,
-                    );
-                    controller.replaceGcps(imported.gcps);
-                  } catch (e) {
-                    controller.reportError(e);
-                  }
-                }
-                e.target.value = "";
-              }}
-            />
-          </label>
-          {controller.options.onSaveDraft && (
-            <button
-              type="button"
-              disabled={!s.document.sourceImage || s.saving === "running"}
-              onClick={() =>
-                void controller
-                  .save("draft")
-                  .catch((e) => controller.reportError(e))
-              }
-            >
-              {t("Save draft")}
-            </button>
-          )}
-        </div>
-      </details>
       <div className="rg-status" role="status" aria-live="polite">
-        {(s.error
-          ? s.errorDetail && formatError
-            ? formatError(s.errorDetail)
-            : t(s.error)
-          : null) ??
-          (s.loading === "running"
+        {guided
+          ? s.loading === "running"
             ? t("Inspecting local image…")
             : s.exporting === "succeeded"
-              ? t("Raster export complete.")
-              : t("Image processing stays on this device."))}
+              ? t("Export complete.")
+              : null
+          : (error ??
+            (s.loading === "running"
+              ? t("Inspecting local image…")
+              : s.exporting === "succeeded"
+                ? t("Raster export complete.")
+                : t("Image processing stays on this device.")))}
       </div>
       <dialog
         ref={dialog}

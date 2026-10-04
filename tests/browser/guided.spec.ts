@@ -71,12 +71,17 @@ async function load(page: Page) {
   await expect(page.locator(".rg-image-meta").first()).toHaveText(
     "elbphilharmonie.webp · 1240 × 697 px",
   );
-  await expect(page.getByLabel("Preview updates")).toHaveValue("manual");
+  expect(
+    await page.evaluate(() => window.demo.controller.getSnapshot().previewMode),
+  ).toBe("manual");
+  // The minimal guided setup hides expert controls.
+  await expect(page.getByLabel("Preview updates")).toHaveCount(0);
+  await expect(page.getByText("Enter coordinates manually")).toHaveCount(0);
 }
 async function pair(page: Page, index: number) {
   await imagePoint(page, matches[index].image);
   await expect(page.locator(".rg-instruction")).toContainText(
-    "matching location on the map",
+    "same spot on the map",
   );
   await mapPoint(page, matches[index].reference);
   await expect
@@ -124,10 +129,7 @@ test("GCP-01/FIT-02: Hamburg manual matching → run → edit → rerun → expo
     page.getByRole("button", { name: "Run alignment", exact: true }),
   ).toBeDisabled();
   await expect(
-    page.getByRole("button", {
-      name: "Confirm alignment and draw",
-      exact: true,
-    }),
+    page.getByRole("button", { name: "Looks good, continue", exact: true }),
   ).toHaveCount(0);
   for (let i = 0; i < 3; i++) await pair(page, i);
   expect(
@@ -141,28 +143,34 @@ test("GCP-01/FIT-02: Hamburg manual matching → run → edit → rerun → expo
     .getByRole("button", { name: "Run alignment", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "Confirm alignment and draw" }),
+    page.getByRole("button", { name: "Looks good, continue" }),
   ).toBeEnabled();
   await expect(page.locator(".rg-instruction")).toContainText(
-    "Inspect the overlay",
+    "Does the image line up with the map?",
   );
-  await page.getByRole("button", { name: "Edit points", exact: true }).click();
-  const x = page.getByLabel("Target X 1", { exact: true });
-  const previous = Number(await x.inputValue());
-  await x.fill(String(previous + 1));
-  await x.press("Tab");
+  await expect(page.locator(".rg-accuracy")).toContainText(
+    "Accuracy not measured yet",
+  );
+  await page
+    .getByRole("button", { name: "Adjust points", exact: true })
+    .click();
+  await page.evaluate(() => {
+    const c = window.demo.controller;
+    const [first] = c.getSnapshot().document.gcps;
+    c.updateGcp(first.id, {
+      target: [first.target[0] + 1, first.target[1]],
+    });
+  });
   expect(
     await page.evaluate(() => window.demo.controller.getSnapshot().fit),
   ).toBeNull();
   await page
     .getByRole("button", { name: "Run alignment", exact: true })
     .click();
-  await expect(
-    page.getByRole("button", { name: "Confirm alignment and draw" }),
-  ).toBeEnabled();
-  await page
-    .getByText("Raster output & session files", { exact: true })
-    .click();
+  await page.getByRole("button", { name: "Looks good, continue" }).click();
+  await expect(page.locator(".rg-instruction")).toContainText(
+    "Download the result or draw on the map",
+  );
   const download = page.waitForEvent("download");
   await page.locator('[data-export-format="geotiff"]').click();
   const file = await download;
@@ -177,9 +185,6 @@ test("GCP-01/FIT-02: Hamburg manual matching → run → edit → rerun → expo
   expect(raster.getGeoKeys()?.ProjectedCSTypeGeoKey).toBe(3857);
   expect(raster.getBoundingBox()[0]).toBeGreaterThan(1_100_000);
   expect(raster.getWidth()).toBeGreaterThan(100);
-  await page
-    .getByRole("button", { name: "Confirm alignment and draw" })
-    .click();
   await page.getByRole("button", { name: "Point", exact: true }).click();
   await mapPoint(page, [1111490.328, 7083748.046]);
   await expect
@@ -191,7 +196,7 @@ test("GCP-01/FIT-02: Hamburg manual matching → run → edit → rerun → expo
       ),
     )
     .toBe(1);
-  await page.getByRole("button", { name: "LineString", exact: true }).click();
+  await page.getByRole("button", { name: "Line", exact: true }).click();
   await mapPoint(page, [1111509.809, 7083748.046]);
   await mapPoint(page, [1111558.511, 7083748.046]);
   await page
@@ -206,7 +211,7 @@ test("GCP-01/FIT-02: Hamburg manual matching → run → edit → rerun → expo
       ),
     )
     .toBe(2);
-  await page.getByRole("button", { name: "Polygon", exact: true }).click();
+  await page.getByRole("button", { name: "Area", exact: true }).click();
   await mapPoint(page, [1111587.733, 7083748.046]);
   await mapPoint(page, [1111646.175, 7083748.046]);
   await mapPoint(page, [1111616.954, 7083699.309]);
@@ -225,7 +230,9 @@ test("GCP-01/FIT-02: Hamburg manual matching → run → edit → rerun → expo
   await page
     .getByRole("button", { name: "Save features", exact: true })
     .click();
-  await expect(page.getByText("Saved by host.", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Features saved.", { exact: true }),
+  ).toBeVisible();
   const geometry = await page.evaluate(
     () =>
       window.demo.controller.getSnapshot().document.features.features[0]
@@ -243,7 +250,7 @@ test("FIT-02/IMG-06: automatic preview is explicit; pending cancellation and rep
   page,
 }) => {
   await load(page);
-  await page.getByLabel("Preview updates").selectOption("automatic");
+  await page.evaluate(() => window.demo.controller.setPreviewMode("automatic"));
   await imagePoint(page, [220, 220]);
   await page.keyboard.press("Escape");
   expect(
@@ -264,19 +271,19 @@ test("FIT-02/IMG-06: automatic preview is explicit; pending cancellation and rep
     page.getByRole("button", { name: "Review alignment", exact: true }),
   ).toBeEnabled();
   await expect(page.locator(".rg-instruction")).toContainText(
-    "Select a point in the image",
+    "Click a recognizable spot in the image",
   );
   const before = await page.evaluate(() =>
     window.demo.map.getView().getCenter(),
   );
-  await page.getByRole("button", { name: "Try the Hamburg example" }).click();
+  await page.getByRole("button", { name: "Remove image", exact: true }).click();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   expect(
     await page.evaluate(
       () => window.demo.controller.getSnapshot().document.gcps.length,
     ),
   ).toBe(3);
-  await page.getByRole("button", { name: "Try the Hamburg example" }).click();
+  await page.getByRole("button", { name: "Remove image", exact: true }).click();
   await page.getByRole("button", { name: "Discard", exact: true }).click();
   await expect
     .poll(() =>
@@ -372,4 +379,55 @@ test("REF-01/NFR-09: unavailable OSM tiles allow coordinate selection and retry"
       center: window.demo.map.getView().getCenter(),
     })),
   ).toEqual(before);
+});
+
+test("NAV-01: both views pan by dragging and zoom by wheel without page scroll", async ({
+  page,
+}) => {
+  await load(page);
+  const state = () =>
+    page.evaluate(() => {
+      const s = window.demo.controller.getSnapshot();
+      const view = window.demo.map.getView();
+      return {
+        imageView: s.imageView!,
+        pending: s.pendingImagePoint,
+        center: view.getCenter()!,
+        resolution: view.getResolution()!,
+        scrollY: window.scrollY,
+      };
+    });
+  const drag = async (box: { x: number; y: number }) => {
+    await page.mouse.move(box.x + 150, box.y + 150);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 210, box.y + 190, { steps: 6 });
+    await page.mouse.up();
+  };
+  const image = (await page.locator("svg.rg-image-view").boundingBox())!;
+  const before = await state();
+  await page.mouse.move(image.x + image.width / 2, image.y + image.height / 2);
+  await page.mouse.wheel(0, -300);
+  await expect
+    .poll(async () => (await state()).imageView[2])
+    .toBeLessThan(before.imageView[2]);
+  const zoomed = await state();
+  await drag(image);
+  const panned = await state();
+  expect(panned.imageView[0]).toBeLessThan(zoomed.imageView[0]);
+  expect(panned.pending).toBeNull();
+  expect(panned.scrollY).toBe(before.scrollY);
+
+  const map = (await page.locator(".workshop-map").boundingBox())!;
+  await page.mouse.move(map.x + map.width / 2, map.y + map.height / 2);
+  await page.mouse.wheel(0, -300);
+  await expect
+    .poll(async () => (await state()).resolution)
+    .toBeLessThan(before.resolution);
+  await page.waitForFunction(() => !window.demo.map.getView().getAnimating());
+  const mapZoomed = await state();
+  await drag(map);
+  await expect
+    .poll(async () => (await state()).center[0])
+    .toBeLessThan(mapZoomed.center[0]);
+  expect((await state()).scrollY).toBe(before.scrollY);
 });

@@ -55,23 +55,44 @@ application ships the processing code twice. Check for a single copy with
 `overrides` entry or npm `overrides` field can force one version if a transitive
 dependency pulls in another.
 
-## Guided matching and explicit preview
+## Guided four-step layout
 
-The [Hamburg demo](https://github.com/tobilg/georeferencing/blob/main/packages/demo/main.tsx)
-starts with `previewMode: "manual"` on the core controller and passes the host map
-view as `Georeferencer.referenceView`. Pick an image location, pick its map match,
-and repeat. **Run alignment** fits and previews those pairs; export and optional
-accepted drawing are separate actions.
+Passing the host map view as `Georeferencer.referenceView` selects the guided
+layout used by the [Hamburg demo](https://github.com/tobilg/georeferencing/blob/main/packages/demo/main.tsx):
+**Load image → Match points → Check alignment → Export or draw**, with one main
+action per step. It starts with minimal controls; enable expert controls one by one
+with the `controls` prop, or pass `ALL_CONTROLS`:
+
+```tsx
+<Georeferencer
+  controller={controller}
+  referenceMap={map}
+  referenceView={mapView}
+  controls={{ transformation: true, pointTable: true, outputSettings: true }}
+/>
+```
+
+The flags are `history` (on by default), `previewMode`, `transformation`,
+`pointTable`, `manualEntry`, `navigation`, `displayAdjustment`, `referenceStatus`,
+`outputSettings`, `sessionFiles` and `unsavedIndicator`. Enable `manualEntry` when
+keyboard-only point entry is required. `emptyImageActions` adds buttons, such as a
+sample image, to the empty drop zone. Without `referenceView`, the classic layout
+shows every control.
 
 Core defaults to `"automatic"` for existing integrations. Change the policy with
 `controller.setPreviewMode(mode)`; it is transient configuration outside session
 JSON. Automatic mode waits for enough enabled pairs before fitting; manual mode
 also applies to undo/redo, restoration and remount. Neither mode bypasses worker
 rank/domain checks or stale-revision protection. The React `PreviewControls`
-component exposes this setting and a run/review button for custom layouts.
+component exposes this setting and a run/review button for custom layouts; the
+guided layout shows its selector only with `controls={{ previewMode: true }}`.
 
-The guided layout announces the next endpoint, activates matching after load,
+The guided layout announces the next point, activates matching after load,
 keeps both viewers visible on desktop, and uses Image/Map buttons below 720 px.
-Edits invalidate the old preview and acceptance; manual mode requires another run.
+Both views pan by dragging and zoom with the mouse wheel; a click without
+dragging places a point. If your map target has a `tabindex`, create the map with
+`interactions: defaults({ onFocusOnly: false })` from `ol/interaction/defaults.js`:
+OpenLayers otherwise ignores mouse panning and wheel zoom until the map has focus.
+Edits invalidate the old preview and confirmation; manual mode requires another run.
 The supplied WebP is decoded locally with the same size/orientation/memory checks
 as other supported input formats.

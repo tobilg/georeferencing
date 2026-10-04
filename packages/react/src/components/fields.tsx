@@ -27,21 +27,29 @@ export function TextField({
 }
 
 /**
- * Retain an editable numeric draft and commit only finite changed values on blur/Enter.
+ * Retain an editable numeric draft and commit only finite values the user changed, on
+ * blur/Enter. `decimals` rounds the displayed value; an untouched rounded display never
+ * overwrites the stored full-precision value.
  */
 export function NumberField({
   value,
   label,
   change,
   disabled = false,
+  decimals,
 }: {
   value: number;
   label: string;
   change: (value: number) => void;
   disabled?: boolean;
+  decimals?: number;
 }) {
-  const [draft, setDraft] = useState(String(value));
-  useEffect(() => setDraft(String(value)), [value]);
+  const shown =
+    decimals === undefined
+      ? String(value)
+      : String(Number(value.toFixed(decimals)));
+  const [draft, setDraft] = useState(shown);
+  useEffect(() => setDraft(shown), [shown]);
   return (
     <input
       aria-label={label}
@@ -52,8 +60,9 @@ export function NumberField({
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => {
         const n = Number(draft);
-        if (draft.trim() && Number.isFinite(n) && n !== value) change(n);
-        else setDraft(String(value));
+        if (draft.trim() && draft.trim() !== shown && Number.isFinite(n))
+          change(n);
+        else setDraft(shown);
       }}
       onKeyDown={(e) => {
         if (e.key === "Enter") e.currentTarget.blur();

@@ -1,8 +1,8 @@
-import type { SaveEnvelope } from "@georeferencing/core";
 import { GeoreferencerController } from "@georeferencing/core";
 import { createWorkerEngine } from "@georeferencing/core/engine";
 import GeoreferencingWorker from "@georeferencing/core/worker?worker";
 import { Georeferencer, useGeoreferencer } from "@georeferencing/react";
+import { defaults as defaultInteractions } from "ol/interaction/defaults.js";
 import TileLayer from "ol/layer/Tile.js";
 import OLMap from "ol/Map.js";
 import OSM from "ol/source/OSM.js";
@@ -29,10 +29,8 @@ function App() {
   const mapRef = useRef<OLMap | null>(null);
   const basemapSource = useRef<OSM | null>(null);
   const [map, setMap] = useState<OLMap | null>(null);
-  const [saved, setSaved] = useState<SaveEnvelope | null>(null);
   const [loadingExample, setLoadingExample] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
-  const rejectSave = useRef(false);
   const exampleAbort = useRef<AbortController | null>(null);
   const [controller] = useState(
     () =>
@@ -44,22 +42,10 @@ function App() {
           workerFactory: () => new GeoreferencingWorker(),
         }),
         exports: demoExports(() => mapRef.current ?? undefined),
+        // Demo persistence: accepted features stay in this browser's localStorage.
         onSave: async (snapshot) => {
-          if (rejectSave.current)
-            throw Error("Demo save failed. Your draft has been retained.");
           localStorage.setItem(
             `georeferencer-demo:${snapshot.documentId}`,
-            JSON.stringify(snapshot),
-          );
-          setSaved(snapshot);
-        },
-        onSaveDraft: async (snapshot) => {
-          if (rejectSave.current)
-            throw Error(
-              "Demo draft save failed. Your draft has been retained.",
-            );
-          localStorage.setItem(
-            `georeferencer-demo-draft:${snapshot.document.id}`,
             JSON.stringify(snapshot),
           );
         },
@@ -71,11 +57,14 @@ function App() {
     const source = new OSM();
     source.on("tileloaderror", () =>
       setMapError(
-        "Some OpenStreetMap tiles could not load. Check your connection and retry. You can still enter map coordinates manually.",
+        "Some OpenStreetMap tiles could not load. Check your connection and retry.",
       ),
     );
     basemapSource.current = source;
     const map = new OLMap({
+      // OpenLayers' Map default only pans/zooms by mouse after a focusable target has
+      // keyboard focus; allow both immediately while keeping keyboard navigation.
+      interactions: defaultInteractions({ onFocusOnly: false }),
       layers: [new TileLayer({ source })],
       view: new View({
         projection: "EPSG:3857",
@@ -129,28 +118,28 @@ function App() {
   return (
     <main className="workshop">
       <header className="workshop-header">
-        <div>
-          <a href="https://github.com/tobilg/georeferencing">georeferencing</a>
-          <h1>Match an image to the map</h1>
-        </div>
-        <button
-          type="button"
-          disabled={loadingExample || state.loading === "running"}
-          onClick={() => void loadExample()}
-        >
-          {loadingExample
-            ? "Loading Hamburg image…"
-            : "Try the Hamburg example"}
-        </button>
+        <a href="https://github.com/tobilg/georeferencing">georeferencing</a>
+        <h1>Match an image to the map</h1>
+        <p className="workshop-intro">
+          Place a photo, plan or scan on the map in four steps. Your image never
+          leaves this browser.
+        </p>
       </header>
-      <p className="workshop-intro">
-        Choose an image, match a few locations, then run alignment. Your image
-        stays in this browser.
-      </p>
       {map && (
         <Georeferencer
           controller={controller}
           referenceMap={map}
+          emptyImageActions={
+            <button
+              type="button"
+              disabled={loadingExample || state.loading === "running"}
+              onClick={() => void loadExample()}
+            >
+              {loadingExample
+                ? "Loading Hamburg image…"
+                : "Try the Hamburg example"}
+            </button>
+          }
           referenceView={
             <section
               className="workshop-reference"
@@ -180,10 +169,7 @@ function App() {
                 // biome-ignore lint/a11y/noNoninteractiveTabindex: OpenLayers attaches keyboard navigation to this focusable map target.
                 tabIndex={0}
               />
-              <p className="rg-hint">
-                Pan and zoom the map to find the matching location. Map tiles
-                load from OpenStreetMap and require an internet connection.
-              </p>
+              <p className="rg-hint">Drag to pan, scroll or use +/− to zoom.</p>
               {mapError && (
                 <div>
                   <p role="alert" className="rg-error">
@@ -204,8 +190,8 @@ function App() {
                 <summary>Tips for the Hamburg example</summary>
                 <p>
                   Match quay corners and bridge ends visible in both views.
-                  Spread at least three pairs across the image, then choose Run
-                  alignment. Add more pairs to assess residuals.
+                  Spread at least three points across the image, then choose Run
+                  alignment. A fourth point lets you measure accuracy.
                 </p>
                 <p>
                   Use the map's shoreline, bridge outlines and street names to
@@ -237,27 +223,6 @@ function App() {
           )}
         />
       )}
-      <details className="workshop-developer">
-        <summary>Developer tools & demo persistence</summary>
-        <p>
-          Feature and draft saves use this browser’s localStorage. No production
-          persistence is configured.
-        </p>
-        <label>
-          <input
-            type="checkbox"
-            onChange={(e) => {
-              rejectSave.current = e.target.checked;
-            }}
-          />{" "}
-          Simulate save failure
-        </label>
-        <p>
-          {saved
-            ? `Saved ${saved.features.features.length} features from revision ${saved.documentRevision}.`
-            : "No accepted features saved yet."}
-        </p>
-      </details>
     </main>
   );
 }

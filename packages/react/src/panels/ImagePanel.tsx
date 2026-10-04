@@ -1,5 +1,5 @@
 import type { GeoreferencerController, XY } from "@georeferencing/core";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { ReactNode, PointerEvent as ReactPointerEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useGeoreferencer } from "../hooks/useGeoreferencer.js";
 import type { Translate } from "../localization.js";
@@ -15,11 +15,23 @@ export function ImagePanel({
   controller,
   /** Optional translation function; defaults to returning English messages unchanged. */
   t = identity,
+  /** Show previous/next view history and linked image/map navigation. */
+  navigation = true,
+  /** Show brightness, contrast and histogram display adjustment. */
+  displayAdjustment = true,
+  /** Extra actions inside the empty drop zone, such as a sample image button. */
+  emptyActions,
 }: {
   /** Shared authoritative editor controller; the panel does not own its lifecycle. */
   controller: GeoreferencerController;
   /** Optional translation function; defaults to returning English messages unchanged. */
   t?: Translate;
+  /** Show previous/next image view history and linked image/map navigation. Defaults to true. */
+  navigation?: boolean;
+  /** Show brightness, contrast and histogram display adjustment. Defaults to true. */
+  displayAdjustment?: boolean;
+  /** Extra actions rendered inside the empty drop zone, such as a sample image button. */
+  emptyActions?: ReactNode;
 }) {
   const s = useGeoreferencer(controller),
     image = s.document.sourceImage,
@@ -92,6 +104,9 @@ export function ImagePanel({
     id?: string;
     point?: XY;
     pointerId: number;
+    /** Image point to place on release if the pointer did not move: a click, not a drag. */
+    click?: XY;
+    moved?: boolean;
   } | null>(null);
   const [dragPoint, setDragPoint] = useState<{ id: string; point: XY } | null>(
     null,
@@ -159,36 +174,61 @@ export function ImagePanel({
     );
     return [p.x, p.y];
   };
-  const zoom = (
-    factor: number,
-    center: XY = [view[0] + view[2] / 2, view[1] + view[3] / 2],
-  ) =>
-    setView((v) => [
-      center[0] + (v[0] - center[0]) * factor,
-      center[1] + (v[1] - center[1]) * factor,
+  // Read the latest view from the controller so rapid wheel events never use a stale render.
+  const zoom = (factor: number, center?: XY) => {
+    const v = controller.getSnapshot().imageView ?? view;
+    const c = center ?? [v[0] + v[2] / 2, v[1] + v[3] / 2];
+    controller.setImageView([
+      c[0] + (v[0] - c[0]) * factor,
+      c[1] + (v[1] - c[1]) * factor,
       Math.max(1, v[2] * factor),
       Math.max(1, v[3] * factor),
     ]);
+  };
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const hasImage = Boolean(image);
+  // React registers wheel listeners as passive; a native one can stop the page scrolling.
+  useEffect(() => {
+    const element = svg.current;
+    if (!hasImage || !element) return;
+    const wheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const matrix = element.getScreenCTM();
+      const center = matrix
+        ? new DOMPoint(e.clientX, e.clientY).matrixTransform(matrix.inverse())
+        : undefined;
+      zoomRef.current(
+        e.deltaY > 0 ? 1.15 : 1 / 1.15,
+        center ? [center.x, center.y] : undefined,
+      );
+    };
+    element.addEventListener("wheel", wheel, { passive: false });
+    return () => element.removeEventListener("wheel", wheel);
+  }, [hasImage]);
   const down = (e: ReactPointerEvent<SVGSVGElement>) => {
     if (!image) return;
     e.preventDefault();
     e.currentTarget.focus({ preventScroll: true });
     const p = point(e);
-    if (s.tool === "gcp" && e.button === 0 && !e.shiftKey) {
-      if (p[0] >= 0 && p[1] >= 0 && p[0] <= image.width && p[1] <= image.height)
-        controller.setPendingPoint(p);
-      return;
-    }
+    const inside =
+      p[0] >= 0 && p[1] >= 0 && p[0] <= image.width && p[1] <= image.height;
+    // Dragging always pans; a click without movement places a point while matching.
     drag.current = {
       start: [e.clientX, e.clientY],
       view,
       pointerId: e.pointerId,
+      click:
+        s.tool === "gcp" && e.button === 0 && !e.shiftKey && inside
+          ? p
+          : undefined,
     };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
   return (
     <section
       className="rg-image-panel"
+      data-empty={image ? undefined : ""}
       aria-label={t("Source image")}
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
@@ -268,6 +308,12 @@ export function ImagePanel({
                 d.point = point(e);
                 setDragPoint({ id: d.id, point: d.point });
               } else {
+                if (
+                  !d.moved &&
+                  Math.hypot(e.clientX - d.start[0], e.clientY - d.start[1]) < 4
+                )
+                  return;
+                d.moved = true;
                 const scale = Math.max(
                   view[2] / e.currentTarget.clientWidth,
                   view[3] / e.currentTarget.clientHeight,
@@ -285,6 +331,8 @@ export function ImagePanel({
               drag.current = null;
               if (d?.id && d.point)
                 controller.updateGcp(d.id, { image: d.point });
+              else if (d?.click && !d.moved)
+                controller.setPendingPoint(d.click);
               setDragPoint(null);
               if (e.currentTarget.hasPointerCapture(e.pointerId))
                 e.currentTarget.releasePointerCapture(e.pointerId);
@@ -292,9 +340,6 @@ export function ImagePanel({
             onPointerCancel={() => {
               drag.current = null;
               setDragPoint(null);
-            }}
-            onWheel={(e) => {
-              zoom(e.deltaY > 0 ? 1.15 : 1 / 1.15, point(e));
             }}
           >
             <defs>
@@ -408,116 +453,143 @@ export function ImagePanel({
             >
               {t("Fit image")}
             </button>
-            <button
-              type="button"
-              onClick={() => controller.navigateImageHistory(-1)}
-            >
-              {t("Previous image view")}
-            </button>
-            <button
-              type="button"
-              onClick={() => controller.navigateImageHistory(1)}
-            >
-              {t("Next image view")}
-            </button>
+            {navigation && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => controller.navigateImageHistory(-1)}
+                >
+                  {t("Previous image view")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => controller.navigateImageHistory(1)}
+                >
+                  {t("Next image view")}
+                </button>
+              </>
+            )}
             <button type="button" onClick={() => void controller.removeImage()}>
               {t("Remove image")}
             </button>
           </div>
-          <label>
-            {t("Linked navigation")}
-            <select
-              disabled={!s.fit}
-              value={s.linkedNavigation}
-              onChange={(e) =>
-                controller.setLinkedNavigation(
-                  e.target.value as "off" | "image-to-map" | "map-to-image",
-                )
-              }
-            >
-              <option value="off">{t("Independent views")}</option>
-              <option value="image-to-map">{t("Map follows image")}</option>
-              <option value="map-to-image">{t("Image follows map")}</option>
-            </select>
-          </label>
-          <details>
-            <summary>{t("Display adjustment & histogram")}</summary>
-            <div className="rg-toolbar">
-              <button type="button" onClick={() => stretchHistogram(false)}>
-                {t("Full histogram stretch")}
-              </button>
-              <button type="button" onClick={() => stretchHistogram(true)}>
-                {t("Local histogram stretch")}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setStretch([
-                    [0, 255],
-                    [0, 255],
-                    [0, 255],
-                  ]);
-                  setBrightness(1);
-                  setContrast(1);
-                }}
+          {navigation && (
+            <label>
+              {t("Linked navigation")}
+              <select
+                disabled={!s.fit}
+                value={s.linkedNavigation}
+                onChange={(e) =>
+                  controller.setLinkedNavigation(
+                    e.target.value as "off" | "image-to-map" | "map-to-image",
+                  )
+                }
               >
-                {t("Reset display")}
-              </button>
-            </div>
-            <label>
-              {t("Brightness")}
-              <input
-                type="range"
-                min="0.25"
-                max="2"
-                step="0.05"
-                value={brightness}
-                onChange={(e) => setBrightness(Number(e.target.value))}
-              />
+                <option value="off">{t("Independent views")}</option>
+                <option value="image-to-map">{t("Map follows image")}</option>
+                <option value="map-to-image">{t("Image follows map")}</option>
+              </select>
             </label>
-            <label>
-              {t("Contrast")}
-              <input
-                type="range"
-                min="0.25"
-                max="2"
-                step="0.05"
-                value={contrast}
-                onChange={(e) => setContrast(Number(e.target.value))}
-              />
-            </label>
-            <svg
-              viewBox="0 0 320 50"
-              aria-label={t("RGB intensity histogram of preview")}
-              className="rg-histogram"
-            >
-              {histogram.map((v, i) => (
-                <rect
-                  // biome-ignore lint/suspicious/noArrayIndexKey: The 32 fixed histogram bins retain their position and identity across updates.
-                  key={i}
-                  x={i * 10}
-                  y={50 - (50 * v) / Math.max(1, ...histogram)}
-                  width="9"
-                  height={(50 * v) / Math.max(1, ...histogram)}
-                  fill="currentColor"
+          )}
+          {displayAdjustment && (
+            <details>
+              <summary>{t("Display adjustment & histogram")}</summary>
+              <div className="rg-toolbar">
+                <button type="button" onClick={() => stretchHistogram(false)}>
+                  {t("Full histogram stretch")}
+                </button>
+                <button type="button" onClick={() => stretchHistogram(true)}>
+                  {t("Local histogram stretch")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStretch([
+                      [0, 255],
+                      [0, 255],
+                      [0, 255],
+                    ]);
+                    setBrightness(1);
+                    setContrast(1);
+                  }}
+                >
+                  {t("Reset display")}
+                </button>
+              </div>
+              <label>
+                {t("Brightness")}
+                <input
+                  type="range"
+                  min="0.25"
+                  max="2"
+                  step="0.05"
+                  value={brightness}
+                  onChange={(e) => setBrightness(Number(e.target.value))}
                 />
-              ))}
-            </svg>
-            <small>
-              {t("Display only. Original samples are preserved for export.")}
-            </small>
-          </details>
+              </label>
+              <label>
+                {t("Contrast")}
+                <input
+                  type="range"
+                  min="0.25"
+                  max="2"
+                  step="0.05"
+                  value={contrast}
+                  onChange={(e) => setContrast(Number(e.target.value))}
+                />
+              </label>
+              <svg
+                viewBox="0 0 320 50"
+                aria-label={t("RGB intensity histogram of preview")}
+                className="rg-histogram"
+              >
+                {histogram.map((v, i) => (
+                  <rect
+                    // biome-ignore lint/suspicious/noArrayIndexKey: The 32 fixed histogram bins retain their position and identity across updates.
+                    key={i}
+                    x={i * 10}
+                    y={50 - (50 * v) / Math.max(1, ...histogram)}
+                    width="9"
+                    height={(50 * v) / Math.max(1, ...histogram)}
+                    fill="currentColor"
+                  />
+                ))}
+              </svg>
+              <small>
+                {t("Display only. Original samples are preserved for export.")}
+              </small>
+            </details>
+          )}
         </>
       ) : (
-        <div className="rg-empty">
-          <span className="rg-cross">＋</span>
-          <p>{t("Drop a map, plan, or photograph here.")}</p>
-          <small>
-            {t(
-              "PNG, JPEG, WebP, ordinary TIFF · up to 25 MiB · stays on this device",
-            )}
-          </small>
-        </div>
+        <>
+          <div className="rg-image-meta">{t("No image selected")}</div>
+          <div className="rg-empty">
+            <span className="rg-cross">＋</span>
+            <p>{t("Drop a map, plan, or photograph here.")}</p>
+            <small>
+              {t(
+                "PNG, JPEG, WebP, ordinary TIFF · up to 25 MiB · stays on this device",
+              )}
+            </small>
+            <div className="rg-toolbar rg-empty-actions">
+              <label className="rg-file rg-primary">
+                {t("Choose image")}
+                <input
+                  aria-label={t("Choose image file")}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/tiff,.tif,.tiff"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void controller.loadImage(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              {emptyActions}
+            </div>
+          </div>
+        </>
       )}
     </section>
   );
