@@ -111,7 +111,7 @@ jobs:
           }
           for pkg in core plugins react; do
             NAME="@georeferencing/$pkg"
-            TARBALL="packages/georeferencing-$pkg-$VERSION.tgz"
+            TARBALL="./packages/georeferencing-$pkg-$VERSION.tgz"
             test -f "$TARBALL" || { echo "::error::Missing $TARBALL"; exit 1; }
             if [ "$DRY_RUN" = "true" ]; then
               npm publish "$TARBALL" --access public --tag "$NPM_TAG" --dry-run

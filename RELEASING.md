@@ -79,9 +79,9 @@ org), then add the trusted publishers:
 git switch --detach v0.1.0          # after creating the tag locally
 pnpm install --frozen-lockfile
 pnpm release:check
-npm publish artifacts/georeferencing-core-0.1.0.tgz --access public
-npm publish artifacts/georeferencing-plugins-0.1.0.tgz --access public
-npm publish artifacts/georeferencing-react-0.1.0.tgz --access public
+npm publish ./artifacts/georeferencing-core-0.1.0.tgz --access public
+npm publish ./artifacts/georeferencing-plugins-0.1.0.tgz --access public
+npm publish ./artifacts/georeferencing-react-0.1.0.tgz --access public
 ```
 
 Then push the `v0.1.0` tag. The release workflow skips the already-published
