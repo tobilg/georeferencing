@@ -1,0 +1,57 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "Georeferencing API",
+  "entryPoints": [
+    "../core/src/core/index.ts",
+    "../core/src/engine/index.ts",
+    "../core/src/engine/encoder-worker.ts",
+    "../core/src/openlayers/index.ts",
+    "../react/src/index.ts",
+    "../plugins/src/index.ts",
+    "../plugins/src/geotiff.ts",
+    "../plugins/src/jpeg.ts",
+    "../plugins/src/pdf.ts",
+    "../plugins/src/data.ts",
+    "../plugins/src/tiff.ts",
+    "../plugins/src/report.ts",
+    "../plugins/src/serializers.ts"
+  ],
+  "tsconfig": "tsconfig.api.json",
+  "entryPointStrategy": "resolve",
+  "router": "structure-dir",
+  "out": "dist",
+  "readme": "./README.md",
+  "projectDocuments": ["./guides/*.md"],
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "validation": {
+    "notDocumented": true
+  },
+  "requiredToBeDocumented": [
+    "Module",
+    "Namespace",
+    "Enum",
+    "EnumMember",
+    "Variable",
+    "Function",
+    "Class",
+    "Interface",
+    "Constructor",
+    "Property",
+    "Method",
+    "Accessor",
+    "TypeAlias"
+  ],
+  "treatWarningsAsErrors": true,
+  "navigationLinks": {
+    "GitHub": "https://github.com/tobilg/georeferencing",
+    "npm": "https://www.npmjs.com/package/@georeferencing/core"
+  },
+  "sourceLinkTemplate": "https://github.com/tobilg/georeferencing/blob/main/{path}#L{line}",
+  "disableGit": true,
+  "basePath": ".",
+  "displayBasePath": "../..",
+  "categorizeByGroup": true
+}

@@ -1,0 +1,79 @@
+{
+  "version": "0.1.0-alpha.2",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "homepage": "https://github.com/tobilg/georeferencing#readme",
+  "bugs": {
+    "url": "https://github.com/tobilg/georeferencing/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "name": "@georeferencing/plugins",
+  "description": "Optional local GeoTIFF, JPEG, PDF and session export plugins for georeferencing",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./geotiff": {
+      "types": "./dist/geotiff.d.ts",
+      "import": "./dist/geotiff.js"
+    },
+    "./jpeg": {
+      "types": "./dist/jpeg.d.ts",
+      "import": "./dist/jpeg.js"
+    },
+    "./pdf": {
+      "types": "./dist/pdf.d.ts",
+      "import": "./dist/pdf.js"
+    },
+    "./data": {
+      "types": "./dist/data.d.ts",
+      "import": "./dist/data.js"
+    },
+    "./tiff": {
+      "types": "./dist/tiff.d.ts",
+      "import": "./dist/tiff.js"
+    },
+    "./report": {
+      "types": "./dist/report.d.ts",
+      "import": "./dist/report.js"
+    },
+    "./geotiff-worker": "./dist/workers/geotiff.js",
+    "./jpeg-worker": "./dist/workers/jpeg.js",
+    "./serializers": {
+      "types": "./dist/serializers.d.ts",
+      "import": "./dist/serializers.js"
+    }
+  },
+  "dependencies": {
+    "@georeferencing/core": "workspace:^",
+    "pdf-lib": "1.17.1"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "build": "node ../../scripts/build-package.mjs plugins",
+    "dev": "node ../../scripts/build-package.mjs plugins --watch",
+    "typecheck": "tsc --noEmit --noUnusedLocals --noUnusedParameters",
+    "prepack": "pnpm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tobilg/georeferencing.git",
+    "directory": "packages/plugins"
+  }
+}

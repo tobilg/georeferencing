@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "paths": {
+      "@georeferencing/core": ["../core/src/core/index.ts"],
+      "@georeferencing/core/core": ["../core/src/core/index.ts"],
+      "@georeferencing/core/engine": ["../core/src/engine/index.ts"],
+      "@georeferencing/core/encoder-worker": [
+        "../core/src/engine/encoder-worker.ts"
+      ],
+      "@georeferencing/core/openlayers": ["../core/src/openlayers/index.ts"]
+    }
+  },
+  "include": ["../core/src", "../react/src", "../plugins/src"]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "clean-georeferencing-consumer",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "ol": "10.10.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vite": "8.3.2",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3"
+  }
+}

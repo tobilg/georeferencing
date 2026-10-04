@@ -1,0 +1,440 @@
+.rg-editor {
+  --rg-accent: #12695b;
+  --rg-border: #d4ded9;
+  --rg-paper: #fffef9;
+  color: #20322f;
+  background: var(--rg-paper);
+  font:
+    14px / 1.5 system-ui,
+    sans-serif;
+  padding: 24px;
+  border: 1px solid var(--rg-border);
+}
+.rg-editor *,
+.rg-guard * {
+  box-sizing: border-box;
+}
+.rg-editor h1 {
+  font-size: 25px;
+  letter-spacing: -0.7px;
+  line-height: 1.2;
+  margin: 5px 0 18px;
+  font-weight: 550;
+}
+.rg-editor h2,
+.rg-guard h2 {
+  font-size: 16px;
+  margin: 0 0 12px;
+  font-weight: 650;
+}
+.rg-editor p {
+  margin: 8px 0;
+}
+.rg-editor small,
+.rg-editor caption,
+.rg-hint {
+  color: #5b6c65;
+  font-size: 12px;
+}
+.rg-eyebrow {
+  font-size: 10px;
+  letter-spacing: 2px;
+  font-weight: 700;
+  color: var(--rg-accent);
+}
+.rg-editor-heading,
+.rg-panel-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.rg-dirty {
+  font-size: 11px;
+  white-space: nowrap;
+  border-bottom: 2px solid #c48e45;
+}
+.rg-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 10px 0;
+}
+.rg-file {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+}
+.rg-editor button:not(:where(.ol-viewport *)),
+.rg-editor .rg-file,
+.rg-guard button {
+  font: inherit;
+  font-size: 12px;
+  padding: 7px 11px;
+  border: 1px solid #b7c8bf;
+  border-radius: 3px;
+  background: #fffef9;
+  color: #20322f;
+  cursor: pointer;
+}
+.rg-editor button:not(:where(.ol-viewport *)):hover,
+.rg-editor .rg-file:hover {
+  border-color: #12695b;
+  background: #eef4ee;
+}
+.rg-editor button:not(:where(.ol-viewport *)):disabled,
+.rg-guard button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.rg-editor button:not(:where(.ol-viewport *))[aria-pressed="true"],
+.rg-editor .rg-primary {
+  background: var(--rg-accent);
+  color: white;
+  border-color: var(--rg-accent);
+}
+.rg-editor :focus-visible,
+.rg-guard :focus-visible {
+  outline: 3px solid #de9c38;
+  outline-offset: 2px;
+}
+.rg-file input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+}
+.rg-file:focus-within {
+  outline: 3px solid #de9c38;
+  outline-offset: 2px;
+}
+.rg-editor input:not([type="checkbox"]):not([type="range"]):not([type="file"]),
+.rg-editor select {
+  width: 100%;
+  border: 1px solid #c4d0c8;
+  border-radius: 3px;
+  padding: 6px;
+  font: inherit;
+  background: white;
+  color: #20322f;
+}
+.rg-editor input[type="range"] {
+  width: 100%;
+  accent-color: var(--rg-accent);
+}
+.rg-editor input[type="checkbox"] {
+  accent-color: var(--rg-accent);
+}
+.rg-editor label {
+  display: block;
+  font-size: 12px;
+  margin: 8px 0;
+}
+.rg-editor .rg-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rg-workbench {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(210px, 0.65fr);
+  gap: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rg-border);
+}
+.rg-image-view {
+  width: 100%;
+  height: 330px;
+  background: #e5e9e0;
+  border: 1px solid #cbd4c8;
+  touch-action: none;
+  cursor: crosshair;
+}
+.rg-image-meta {
+  font-size: 11px;
+  margin-bottom: 9px;
+  overflow-wrap: anywhere;
+}
+.rg-empty {
+  height: 330px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 24px;
+  background: #f1f3eb;
+  border: 1px dashed #9dab9e;
+}
+.rg-cross {
+  font-size: 38px;
+  font-weight: 200;
+  color: #678476;
+}
+.rg-editor section + section {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rg-border);
+}
+.rg-fit-summary {
+  font-variant-numeric: tabular-nums;
+}
+.rg-table-scroll {
+  overflow-x: auto;
+  margin: 12px 0;
+}
+.rg-editor table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+.rg-editor th,
+.rg-editor td {
+  padding: 7px 4px;
+  text-align: left;
+  border-bottom: 1px solid #e1e7df;
+  white-space: nowrap;
+}
+.rg-editor td input[type="number"] {
+  min-width: 90px;
+  max-width: 130px;
+  font-variant-numeric: tabular-nums;
+}
+.rg-editor caption {
+  caption-side: bottom;
+  text-align: left;
+  padding-top: 7px;
+}
+.rg-editor details {
+  margin-top: 14px;
+}
+.rg-editor summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 0;
+}
+.rg-coordinate-entry,
+.rg-output-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 14px;
+}
+.rg-feature {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  border-bottom: 1px solid var(--rg-border);
+  padding: 5px 0;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.rg-feature > input {
+  flex-basis: 100%;
+}
+.rg-status {
+  margin-top: 20px;
+  padding: 12px;
+  background: #eef2e9;
+  border-left: 3px solid #7c917c;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.rg-guard {
+  color: #20322f;
+  border: 1px solid #9dab9e;
+  border-radius: 5px;
+  max-width: 460px;
+  padding: 28px;
+  font:
+    14px / 1.5 system-ui,
+    sans-serif;
+}
+.rg-guard::backdrop {
+  background: #10292170;
+}
+.rg-histogram {
+  max-height: 70px;
+  width: 100%;
+  color: #12695b;
+}
+.rg-editor progress {
+  width: 100%;
+  accent-color: var(--rg-accent);
+}
+@media (max-width: 750px) {
+  .rg-workbench {
+    grid-template-columns: 1fr;
+  }
+  .rg-editor {
+    padding: 16px;
+  }
+  .rg-editor-heading {
+    display: block;
+  }
+}
+
+/* Guided two-view layout; all selectors remain scoped to the editor. */
+.rg-preview-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.rg-preview-controls label {
+  min-width: 115px;
+}
+.rg-readiness {
+  display: block;
+  margin-top: 4px;
+}
+.rg-guided {
+  padding: 18px;
+}
+.rg-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  list-style: none;
+  margin: 0;
+  padding: 0 0 14px;
+  border-bottom: 1px solid var(--rg-border);
+  font-size: 12px;
+  color: #5b6c65;
+}
+.rg-steps [aria-current="step"] {
+  color: var(--rg-accent);
+  font-weight: 750;
+}
+.rg-matching-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 12px 0 4px;
+}
+.rg-instruction strong {
+  font-size: 16px;
+}
+.rg-instruction p {
+  max-width: 600px;
+  font-size: 12px;
+  color: #5b6c65;
+}
+.rg-match-tools {
+  margin: 0 0 12px;
+}
+.rg-match-tools label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+.rg-match-tools select {
+  max-width: 225px;
+}
+.rg-paired-views {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+}
+.rg-source-pane,
+.rg-reference-pane {
+  min-width: 0;
+  border-top: 3px solid transparent;
+  padding-top: 10px;
+}
+.rg-paired-views [data-active="true"] {
+  border-top-color: var(--rg-accent);
+}
+.rg-guided .rg-image-view,
+.rg-guided .rg-empty {
+  height: clamp(280px, 44vh, 480px);
+}
+.rg-guided .rg-image-panel .rg-panel-heading {
+  min-height: 39px;
+}
+.rg-guided .rg-image-panel .rg-panel-heading h2 {
+  margin: 0;
+}
+.rg-guided .rg-image-meta {
+  margin-top: 4px;
+}
+.rg-view-tabs {
+  display: none;
+}
+.rg-review-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  padding: 18px 0;
+}
+.rg-review-panels section + section {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+.rg-guided .rg-gcp-panel {
+  border-top: 1px solid var(--rg-border);
+  margin-top: 18px;
+  padding-top: 16px;
+}
+.rg-guided .rg-gcp-panel > .rg-toolbar,
+.rg-guided .rg-gcp-panel > .rg-hint {
+  display: none;
+}
+.rg-advanced {
+  margin-top: 16px;
+}
+@media (max-width: 720px) {
+  .rg-guided {
+    padding: 12px;
+  }
+  .rg-matching-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+  .rg-preview-controls {
+    justify-content: space-between;
+  }
+  .rg-match-tools label {
+    margin-left: 0;
+    width: 100%;
+  }
+  .rg-paired-views {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rg-paired-views[data-mobile-view="image"] .rg-reference-pane,
+  .rg-paired-views[data-mobile-view="map"] .rg-source-pane {
+    display: none;
+  }
+  .rg-view-tabs {
+    display: flex;
+    gap: 8px;
+  }
+  .rg-guided .rg-image-view,
+  .rg-guided .rg-empty {
+    height: 340px;
+  }
+  .rg-review-panels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.rg-guided .rg-image-panel .rg-panel-heading .rg-file {
+  margin: 0;
+}
+.rg-view-tabs {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.rg-guided .rg-matching-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--rg-paper);
+}

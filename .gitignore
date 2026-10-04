@@ -141,3 +141,25 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+plans/
+
+# Private local project records. Keep source, consumer guides and licenses public.
+docs/adr/
+docs/research/
+docs/evidence/
+docs/delivery-report.md
+docs/parity.md
+
+# Local validation/build artifacts
+artifacts/
+demo-dist/
+test-results/
+playwright-report/
+
+# Legacy generated docs and licenses copied during builds.
+packages/core/docs/
+packages/core/LICENSE
+
+packages/plugins/LICENSE
+packages/react/LICENSE

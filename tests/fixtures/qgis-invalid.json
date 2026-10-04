@@ -1,0 +1,4388 @@
+{
+  "qgis": "3.44.0-Solothurn",
+  "gdal": "GDAL 3.8.4, released 2024/02/08",
+  "proj": "9.4.0",
+  "digest": "sha256:d573fb911eebe29fcf81419868f5d41e8ff7b384d9775cca819cdef2c3989ce6",
+  "records": [
+    {
+      "model": "linear",
+      "case": "insufficient",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": false,
+      "qgisForward": [],
+      "qgisBackward": [],
+      "minimum": 2
+    },
+    {
+      "model": "linear",
+      "case": "collinear",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "1",
+          "label": 2,
+          "enabled": true,
+          "image": [
+            5,
+            0
+          ],
+          "target": [
+            1010,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "2",
+          "label": 3,
+          "enabled": true,
+          "image": [
+            10,
+            0
+          ],
+          "target": [
+            1020,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "3",
+          "label": 4,
+          "enabled": true,
+          "image": [
+            15,
+            0
+          ],
+          "target": [
+            1030,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "4",
+          "label": 5,
+          "enabled": true,
+          "image": [
+            20,
+            0
+          ],
+          "target": [
+            1040,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "5",
+          "label": 6,
+          "enabled": true,
+          "image": [
+            25,
+            0
+          ],
+          "target": [
+            1050,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "6",
+          "label": 7,
+          "enabled": true,
+          "image": [
+            30,
+            0
+          ],
+          "target": [
+            1060,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "7",
+          "label": 8,
+          "enabled": true,
+          "image": [
+            35,
+            0
+          ],
+          "target": [
+            1070,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "8",
+          "label": 9,
+          "enabled": true,
+          "image": [
+            40,
+            0
+          ],
+          "target": [
+            1080,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "9",
+          "label": 10,
+          "enabled": true,
+          "image": [
+            45,
+            0
+          ],
+          "target": [
+            1090,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "10",
+          "label": 11,
+          "enabled": true,
+          "image": [
+            50,
+            0
+          ],
+          "target": [
+            1100,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "11",
+          "label": 12,
+          "enabled": true,
+          "image": [
+            55,
+            0
+          ],
+          "target": [
+            1110,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "12",
+          "label": 13,
+          "enabled": true,
+          "image": [
+            60,
+            0
+          ],
+          "target": [
+            1120,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "13",
+          "label": 14,
+          "enabled": true,
+          "image": [
+            65,
+            0
+          ],
+          "target": [
+            1130,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "14",
+          "label": 15,
+          "enabled": true,
+          "image": [
+            70,
+            0
+          ],
+          "target": [
+            1140,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "15",
+          "label": 16,
+          "enabled": true,
+          "image": [
+            75,
+            0
+          ],
+          "target": [
+            1150,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": true,
+      "qgisForward": [
+        [
+          true,
+          1040,
+          null
+        ],
+        [
+          true,
+          1160,
+          null
+        ],
+        [
+          true,
+          1100,
+          null
+        ]
+      ],
+      "qgisBackward": [
+        [
+          true,
+          20,
+          null
+        ],
+        [
+          true,
+          80,
+          null
+        ],
+        [
+          true,
+          50,
+          null
+        ]
+      ],
+      "minimum": 2
+    },
+    {
+      "model": "linear",
+      "case": "duplicate-conflict",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "1",
+          "label": 2,
+          "enabled": true,
+          "image": [
+            100,
+            0
+          ],
+          "target": [
+            1200,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "2",
+          "label": 3,
+          "enabled": true,
+          "image": [
+            0,
+            100
+          ],
+          "target": [
+            1000,
+            1700
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "3",
+          "label": 4,
+          "enabled": true,
+          "image": [
+            100,
+            100
+          ],
+          "target": [
+            1200,
+            1700
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "4",
+          "label": 5,
+          "enabled": true,
+          "image": [
+            50,
+            0
+          ],
+          "target": [
+            1100,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "5",
+          "label": 6,
+          "enabled": true,
+          "image": [
+            0,
+            50
+          ],
+          "target": [
+            1000,
+            1850
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "6",
+          "label": 7,
+          "enabled": true,
+          "image": [
+            50,
+            100
+          ],
+          "target": [
+            1100,
+            1700
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "7",
+          "label": 8,
+          "enabled": true,
+          "image": [
+            100,
+            50
+          ],
+          "target": [
+            1200,
+            1850
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "8",
+          "label": 9,
+          "enabled": true,
+          "image": [
+            25,
+            25
+          ],
+          "target": [
+            1050,
+            1925
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "9",
+          "label": 10,
+          "enabled": true,
+          "image": [
+            75,
+            25
+          ],
+          "target": [
+            1150,
+            1925
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "10",
+          "label": 11,
+          "enabled": true,
+          "image": [
+            25,
+            75
+          ],
+          "target": [
+            1050,
+            1775
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "11",
+          "label": 12,
+          "enabled": true,
+          "image": [
+            75,
+            75
+          ],
+          "target": [
+            1150,
+            1775
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "12",
+          "label": 13,
+          "enabled": true,
+          "image": [
+            50,
+            50
+          ],
+          "target": [
+            1100,
+            1850
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "13",
+          "label": 14,
+          "enabled": true,
+          "image": [
+            10,
+            30
+          ],
+          "target": [
+            1020,
+            1910
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "14",
+          "label": 15,
+          "enabled": true,
+          "image": [
+            90,
+            70
+          ],
+          "target": [
+            1180,
+            1790
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "15",
+          "label": 16,
+          "enabled": true,
+          "image": [
+            20,
+            80
+          ],
+          "target": [
+            1040,
+            1760
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "conflict",
+          "label": 17,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1100,
+            2100
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": true,
+      "qgisForward": [
+        [
+          true,
+          1050.711629060253,
+          1920.1221166892808
+        ],
+        [
+          true,
+          1159.2561368708157,
+          1791.112618724559
+        ],
+        [
+          true,
+          1104.9838829655343,
+          1855.61736770692
+        ]
+      ],
+      "qgisBackward": [
+        [
+          true,
+          20.000000000000046,
+          30.000000000000025
+        ],
+        [
+          true,
+          79.99999999999994,
+          69.99999999999999
+        ],
+        [
+          true,
+          49.99999999999999,
+          49.99999999999997
+        ]
+      ],
+      "minimum": 2
+    },
+    {
+      "model": "helmert",
+      "case": "insufficient",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": false,
+      "qgisForward": [],
+      "qgisBackward": [],
+      "minimum": 2
+    },
+    {
+      "model": "helmert",
+      "case": "collinear",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "1",
+          "label": 2,
+          "enabled": true,
+          "image": [
+            5,
+            0
+          ],
+          "target": [
+            1010,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "2",
+          "label": 3,
+          "enabled": true,
+          "image": [
+            10,
+            0
+          ],
+          "target": [
+            1020,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "3",
+          "label": 4,
+          "enabled": true,
+          "image": [
+            15,
+            0
+          ],
+          "target": [
+            1030,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "4",
+          "label": 5,
+          "enabled": true,
+          "image": [
+            20,
+            0
+          ],
+          "target": [
+            1040,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "5",
+          "label": 6,
+          "enabled": true,
+          "image": [
+            25,
+            0
+          ],
+          "target": [
+            1050,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "6",
+          "label": 7,
+          "enabled": true,
+          "image": [
+            30,
+            0
+          ],
+          "target": [
+            1060,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "7",
+          "label": 8,
+          "enabled": true,
+          "image": [
+            35,
+            0
+          ],
+          "target": [
+            1070,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "8",
+          "label": 9,
+          "enabled": true,
+          "image": [
+            40,
+            0
+          ],
+          "target": [
+            1080,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "9",
+          "label": 10,
+          "enabled": true,
+          "image": [
+            45,
+            0
+          ],
+          "target": [
+            1090,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "10",
+          "label": 11,
+          "enabled": true,
+          "image": [
+            50,
+            0
+          ],
+          "target": [
+            1100,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "11",
+          "label": 12,
+          "enabled": true,
+          "image": [
+            55,
+            0
+          ],
+          "target": [
+            1110,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "12",
+          "label": 13,
+          "enabled": true,
+          "image": [
+            60,
+            0
+          ],
+          "target": [
+            1120,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "13",
+          "label": 14,
+          "enabled": true,
+          "image": [
+            65,
+            0
+          ],
+          "target": [
+            1130,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "14",
+          "label": 15,
+          "enabled": true,
+          "image": [
+            70,
+            0
+          ],
+          "target": [
+            1140,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "15",
+          "label": 16,
+          "enabled": true,
+          "image": [
+            75,
+            0
+          ],
+          "target": [
+            1150,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": true,
+      "qgisForward": [
+        [
+          true,
+          1040.0000000000002,
+          1939.9999999999998
+        ],
+        [
+          true,
+          1160.0000000000007,
+          1860
+        ],
+        [
+          true,
+          1100.0000000000005,
+          1900
+        ]
+      ],
+      "qgisBackward": [
+        [
+          true,
+          20.00000000000002,
+          30.00000000000002
+        ],
+        [
+          true,
+          80,
+          70.00000000000006
+        ],
+        [
+          true,
+          50.00000000000001,
+          49.999999999999986
+        ]
+      ],
+      "minimum": 2
+    },
+    {
+      "model": "helmert",
+      "case": "duplicate-conflict",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "1",
+          "label": 2,
+          "enabled": true,
+          "image": [
+            100,
+            0
+          ],
+          "target": [
+            1200,
+            2050
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "2",
+          "label": 3,
+          "enabled": true,
+          "image": [
+            0,
+            100
+          ],
+          "target": [
+            1050,
+            1800
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "3",
+          "label": 4,
+          "enabled": true,
+          "image": [
+            100,
+            100
+          ],
+          "target": [
+            1250,
+            1850
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "4",
+          "label": 5,
+          "enabled": true,
+          "image": [
+            50,
+            0
+          ],
+          "target": [
+            1100,
+            2025
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "5",
+          "label": 6,
+          "enabled": true,
+          "image": [
+            0,
+            50
+          ],
+          "target": [
+            1025,
+            1900
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "6",
+          "label": 7,
+          "enabled": true,
+          "image": [
+            50,
+            100
+          ],
+          "target": [
+            1150,
+            1825
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "7",
+          "label": 8,
+          "enabled": true,
+          "image": [
+            100,
+            50
+          ],
+          "target": [
+            1225,
+            1950
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "8",
+          "label": 9,
+          "enabled": true,
+          "image": [
+            25,
+            25
+          ],
+          "target": [
+            1062.5,
+            1962.5
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "9",
+          "label": 10,
+          "enabled": true,
+          "image": [
+            75,
+            25
+          ],
+          "target": [
+            1162.5,
+            1987.5
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "10",
+          "label": 11,
+          "enabled": true,
+          "image": [
+            25,
+            75
+          ],
+          "target": [
+            1087.5,
+            1862.5
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "11",
+          "label": 12,
+          "enabled": true,
+          "image": [
+            75,
+            75
+          ],
+          "target": [
+            1187.5,
+            1887.5
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "12",
+          "label": 13,
+          "enabled": true,
+          "image": [
+            50,
+            50
+          ],
+          "target": [
+            1125,
+            1925
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "13",
+          "label": 14,
+          "enabled": true,
+          "image": [
+            10,
+            30
+          ],
+          "target": [
+            1035,
+            1945
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "14",
+          "label": 15,
+          "enabled": true,
+          "image": [
+            90,
+            70
+          ],
+          "target": [
+            1215,
+            1905
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "15",
+          "label": 16,
+          "enabled": true,
+          "image": [
+            20,
+            80
+          ],
+          "target": [
+            1080,
+            1850
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "conflict",
+          "label": 17,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1100,
+            2100
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": true,
+      "qgisForward": [
+        [
+          true,
+          1064.5879761596268,
+          1961.2723503498319
+        ],
+        [
+          true,
+          1196.762114537445,
+          1898.522933402436
+        ],
+        [
+          true,
+          1130.675045348536,
+          1929.8976418761338
+        ]
+      ],
+      "qgisBackward": [
+        [
+          true,
+          19.999999999999968,
+          30.000000000000014
+        ],
+        [
+          true,
+          80.00000000000004,
+          69.99999999999997
+        ],
+        [
+          true,
+          50.00000000000006,
+          50.00000000000006
+        ]
+      ],
+      "minimum": 2
+    },
+    {
+      "model": "polynomial1",
+      "case": "insufficient",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "1",
+          "label": 2,
+          "enabled": true,
+          "image": [
+            100,
+            0
+          ],
+          "target": [
+            1200,
+            2020
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": false,
+      "qgisForward": [],
+      "qgisBackward": [],
+      "minimum": 3
+    },
+    {
+      "model": "polynomial1",
+      "case": "collinear",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "1",
+          "label": 2,
+          "enabled": true,
+          "image": [
+            5,
+            0
+          ],
+          "target": [
+            1010,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "2",
+          "label": 3,
+          "enabled": true,
+          "image": [
+            10,
+            0
+          ],
+          "target": [
+            1020,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "3",
+          "label": 4,
+          "enabled": true,
+          "image": [
+            15,
+            0
+          ],
+          "target": [
+            1030,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "4",
+          "label": 5,
+          "enabled": true,
+          "image": [
+            20,
+            0
+          ],
+          "target": [
+            1040,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "5",
+          "label": 6,
+          "enabled": true,
+          "image": [
+            25,
+            0
+          ],
+          "target": [
+            1050,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "6",
+          "label": 7,
+          "enabled": true,
+          "image": [
+            30,
+            0
+          ],
+          "target": [
+            1060,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "7",
+          "label": 8,
+          "enabled": true,
+          "image": [
+            35,
+            0
+          ],
+          "target": [
+            1070,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "8",
+          "label": 9,
+          "enabled": true,
+          "image": [
+            40,
+            0
+          ],
+          "target": [
+            1080,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "9",
+          "label": 10,
+          "enabled": true,
+          "image": [
+            45,
+            0
+          ],
+          "target": [
+            1090,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "10",
+          "label": 11,
+          "enabled": true,
+          "image": [
+            50,
+            0
+          ],
+          "target": [
+            1100,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "11",
+          "label": 12,
+          "enabled": true,
+          "image": [
+            55,
+            0
+          ],
+          "target": [
+            1110,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "12",
+          "label": 13,
+          "enabled": true,
+          "image": [
+            60,
+            0
+          ],
+          "target": [
+            1120,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "13",
+          "label": 14,
+          "enabled": true,
+          "image": [
+            65,
+            0
+          ],
+          "target": [
+            1130,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "14",
+          "label": 15,
+          "enabled": true,
+          "image": [
+            70,
+            0
+          ],
+          "target": [
+            1140,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "15",
+          "label": 16,
+          "enabled": true,
+          "image": [
+            75,
+            0
+          ],
+          "target": [
+            1150,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": false,
+      "qgisForward": [],
+      "qgisBackward": [],
+      "minimum": 3
+    },
+    {
+      "model": "polynomial1",
+      "case": "duplicate-conflict",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "1",
+          "label": 2,
+          "enabled": true,
+          "image": [
+            100,
+            0
+          ],
+          "target": [
+            1200,
+            2020
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "2",
+          "label": 3,
+          "enabled": true,
+          "image": [
+            0,
+            100
+          ],
+          "target": [
+            1030,
+            1700
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "3",
+          "label": 4,
+          "enabled": true,
+          "image": [
+            100,
+            100
+          ],
+          "target": [
+            1230,
+            1720
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "4",
+          "label": 5,
+          "enabled": true,
+          "image": [
+            50,
+            0
+          ],
+          "target": [
+            1100,
+            2010
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "5",
+          "label": 6,
+          "enabled": true,
+          "image": [
+            0,
+            50
+          ],
+          "target": [
+            1015,
+            1850
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "6",
+          "label": 7,
+          "enabled": true,
+          "image": [
+            50,
+            100
+          ],
+          "target": [
+            1130,
+            1710
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "7",
+          "label": 8,
+          "enabled": true,
+          "image": [
+            100,
+            50
+          ],
+          "target": [
+            1215,
+            1870
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "8",
+          "label": 9,
+          "enabled": true,
+          "image": [
+            25,
+            25
+          ],
+          "target": [
+            1057.5,
+            1930
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "9",
+          "label": 10,
+          "enabled": true,
+          "image": [
+            75,
+            25
+          ],
+          "target": [
+            1157.5,
+            1940
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "10",
+          "label": 11,
+          "enabled": true,
+          "image": [
+            25,
+            75
+          ],
+          "target": [
+            1072.5,
+            1780
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "11",
+          "label": 12,
+          "enabled": true,
+          "image": [
+            75,
+            75
+          ],
+          "target": [
+            1172.5,
+            1790
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "12",
+          "label": 13,
+          "enabled": true,
+          "image": [
+            50,
+            50
+          ],
+          "target": [
+            1115,
+            1860
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "13",
+          "label": 14,
+          "enabled": true,
+          "image": [
+            10,
+            30
+          ],
+          "target": [
+            1029,
+            1912
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "14",
+          "label": 15,
+          "enabled": true,
+          "image": [
+            90,
+            70
+          ],
+          "target": [
+            1201,
+            1808
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "15",
+          "label": 16,
+          "enabled": true,
+          "image": [
+            20,
+            80
+          ],
+          "target": [
+            1064,
+            1764
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "conflict",
+          "label": 17,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1100,
+            2100
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": true,
+      "qgisForward": [
+        [
+          true,
+          1062.8398462135685,
+          1927.8398462135688
+        ],
+        [
+          true,
+          1176.9019040280339,
+          1801.901904028034
+        ],
+        [
+          true,
+          1119.8708751208012,
+          1864.8708751208014
+        ]
+      ],
+      "qgisBackward": [
+        [
+          true,
+          21.20120568419273,
+          29.34479689953117
+        ],
+        [
+          true,
+          78.04173321682968,
+          71.06814551809283
+        ],
+        [
+          true,
+          49.621469450511206,
+          50.206471208812005
+        ]
+      ],
+      "minimum": 3
+    },
+    {
+      "model": "polynomial2",
+      "case": "insufficient",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "1",
+          "label": 2,
+          "enabled": true,
+          "image": [
+            100,
+            0
+          ],
+          "target": [
+            1200,
+            2010
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "2",
+          "label": 3,
+          "enabled": true,
+          "image": [
+            0,
+            100
+          ],
+          "target": [
+            1000,
+            1700
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "3",
+          "label": 4,
+          "enabled": true,
+          "image": [
+            100,
+            100
+          ],
+          "target": [
+            1220,
+            1710
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "4",
+          "label": 5,
+          "enabled": true,
+          "image": [
+            50,
+            0
+          ],
+          "target": [
+            1100,
+            2002.5
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": false,
+      "qgisForward": [],
+      "qgisBackward": [],
+      "minimum": 6
+    },
+    {
+      "model": "polynomial2",
+      "case": "collinear",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "1",
+          "label": 2,
+          "enabled": true,
+          "image": [
+            5,
+            0
+          ],
+          "target": [
+            1010,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "2",
+          "label": 3,
+          "enabled": true,
+          "image": [
+            10,
+            0
+          ],
+          "target": [
+            1020,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "3",
+          "label": 4,
+          "enabled": true,
+          "image": [
+            15,
+            0
+          ],
+          "target": [
+            1030,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "4",
+          "label": 5,
+          "enabled": true,
+          "image": [
+            20,
+            0
+          ],
+          "target": [
+            1040,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "5",
+          "label": 6,
+          "enabled": true,
+          "image": [
+            25,
+            0
+          ],
+          "target": [
+            1050,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "6",
+          "label": 7,
+          "enabled": true,
+          "image": [
+            30,
+            0
+          ],
+          "target": [
+            1060,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "7",
+          "label": 8,
+          "enabled": true,
+          "image": [
+            35,
+            0
+          ],
+          "target": [
+            1070,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "8",
+          "label": 9,
+          "enabled": true,
+          "image": [
+            40,
+            0
+          ],
+          "target": [
+            1080,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "9",
+          "label": 10,
+          "enabled": true,
+          "image": [
+            45,
+            0
+          ],
+          "target": [
+            1090,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "10",
+          "label": 11,
+          "enabled": true,
+          "image": [
+            50,
+            0
+          ],
+          "target": [
+            1100,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "11",
+          "label": 12,
+          "enabled": true,
+          "image": [
+            55,
+            0
+          ],
+          "target": [
+            1110,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "12",
+          "label": 13,
+          "enabled": true,
+          "image": [
+            60,
+            0
+          ],
+          "target": [
+            1120,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "13",
+          "label": 14,
+          "enabled": true,
+          "image": [
+            65,
+            0
+          ],
+          "target": [
+            1130,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "14",
+          "label": 15,
+          "enabled": true,
+          "image": [
+            70,
+            0
+          ],
+          "target": [
+            1140,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "15",
+          "label": 16,
+          "enabled": true,
+          "image": [
+            75,
+            0
+          ],
+          "target": [
+            1150,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": false,
+      "qgisForward": [],
+      "qgisBackward": [],
+      "minimum": 6
+    },
+    {
+      "model": "polynomial2",
+      "case": "duplicate-conflict",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "1",
+          "label": 2,
+          "enabled": true,
+          "image": [
+            100,
+            0
+          ],
+          "target": [
+            1200,
+            2010
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "2",
+          "label": 3,
+          "enabled": true,
+          "image": [
+            0,
+            100
+          ],
+          "target": [
+            1000,
+            1700
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "3",
+          "label": 4,
+          "enabled": true,
+          "image": [
+            100,
+            100
+          ],
+          "target": [
+            1220,
+            1710
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "4",
+          "label": 5,
+          "enabled": true,
+          "image": [
+            50,
+            0
+          ],
+          "target": [
+            1100,
+            2002.5
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "5",
+          "label": 6,
+          "enabled": true,
+          "image": [
+            0,
+            50
+          ],
+          "target": [
+            1000,
+            1850
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "6",
+          "label": 7,
+          "enabled": true,
+          "image": [
+            50,
+            100
+          ],
+          "target": [
+            1110,
+            1702.5
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "7",
+          "label": 8,
+          "enabled": true,
+          "image": [
+            100,
+            50
+          ],
+          "target": [
+            1210,
+            1860
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "8",
+          "label": 9,
+          "enabled": true,
+          "image": [
+            25,
+            25
+          ],
+          "target": [
+            1051.25,
+            1925.625
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "9",
+          "label": 10,
+          "enabled": true,
+          "image": [
+            75,
+            25
+          ],
+          "target": [
+            1153.75,
+            1930.625
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "10",
+          "label": 11,
+          "enabled": true,
+          "image": [
+            25,
+            75
+          ],
+          "target": [
+            1053.75,
+            1775.625
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "11",
+          "label": 12,
+          "enabled": true,
+          "image": [
+            75,
+            75
+          ],
+          "target": [
+            1161.25,
+            1780.625
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "12",
+          "label": 13,
+          "enabled": true,
+          "image": [
+            50,
+            50
+          ],
+          "target": [
+            1105,
+            1852.5
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "13",
+          "label": 14,
+          "enabled": true,
+          "image": [
+            10,
+            30
+          ],
+          "target": [
+            1020.6,
+            1910.1
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "14",
+          "label": 15,
+          "enabled": true,
+          "image": [
+            90,
+            70
+          ],
+          "target": [
+            1192.6,
+            1798.1
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "15",
+          "label": 16,
+          "enabled": true,
+          "image": [
+            20,
+            80
+          ],
+          "target": [
+            1043.2,
+            1760.4
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "conflict",
+          "label": 17,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1100,
+            2100
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": true,
+      "qgisForward": [
+        [
+          true,
+          1049.9641446473186,
+          1919.164144647319
+        ],
+        [
+          true,
+          1165.8166647320502,
+          1791.0166647320505
+        ],
+        [
+          true,
+          1098.8504156828453,
+          1846.350415682846
+        ]
+      ],
+      "qgisBackward": [
+        [
+          true,
+          24.049954486370996,
+          27.32251182283726
+        ],
+        [
+          true,
+          79.99419680388102,
+          70.00592764794219
+        ],
+        [
+          true,
+          49.488851794619116,
+          50.38391599729693
+        ]
+      ],
+      "minimum": 6
+    },
+    {
+      "model": "polynomial3",
+      "case": "insufficient",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "1",
+          "label": 2,
+          "enabled": true,
+          "image": [
+            100,
+            0
+          ],
+          "target": [
+            1200,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "2",
+          "label": 3,
+          "enabled": true,
+          "image": [
+            0,
+            100
+          ],
+          "target": [
+            1000,
+            1700
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "3",
+          "label": 4,
+          "enabled": true,
+          "image": [
+            100,
+            100
+          ],
+          "target": [
+            1202,
+            1701
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "4",
+          "label": 5,
+          "enabled": true,
+          "image": [
+            50,
+            0
+          ],
+          "target": [
+            1100,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "5",
+          "label": 6,
+          "enabled": true,
+          "image": [
+            0,
+            50
+          ],
+          "target": [
+            1000,
+            1850
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "6",
+          "label": 7,
+          "enabled": true,
+          "image": [
+            50,
+            100
+          ],
+          "target": [
+            1100.5,
+            1700.5
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "7",
+          "label": 8,
+          "enabled": true,
+          "image": [
+            100,
+            50
+          ],
+          "target": [
+            1201,
+            1850.25
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "8",
+          "label": 9,
+          "enabled": true,
+          "image": [
+            25,
+            25
+          ],
+          "target": [
+            1050.03125,
+            1925.015625
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": false,
+      "qgisForward": [],
+      "qgisBackward": [],
+      "minimum": 10
+    },
+    {
+      "model": "polynomial3",
+      "case": "collinear",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "1",
+          "label": 2,
+          "enabled": true,
+          "image": [
+            5,
+            0
+          ],
+          "target": [
+            1010,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "2",
+          "label": 3,
+          "enabled": true,
+          "image": [
+            10,
+            0
+          ],
+          "target": [
+            1020,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "3",
+          "label": 4,
+          "enabled": true,
+          "image": [
+            15,
+            0
+          ],
+          "target": [
+            1030,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "4",
+          "label": 5,
+          "enabled": true,
+          "image": [
+            20,
+            0
+          ],
+          "target": [
+            1040,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "5",
+          "label": 6,
+          "enabled": true,
+          "image": [
+            25,
+            0
+          ],
+          "target": [
+            1050,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "6",
+          "label": 7,
+          "enabled": true,
+          "image": [
+            30,
+            0
+          ],
+          "target": [
+            1060,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "7",
+          "label": 8,
+          "enabled": true,
+          "image": [
+            35,
+            0
+          ],
+          "target": [
+            1070,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "8",
+          "label": 9,
+          "enabled": true,
+          "image": [
+            40,
+            0
+          ],
+          "target": [
+            1080,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "9",
+          "label": 10,
+          "enabled": true,
+          "image": [
+            45,
+            0
+          ],
+          "target": [
+            1090,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "10",
+          "label": 11,
+          "enabled": true,
+          "image": [
+            50,
+            0
+          ],
+          "target": [
+            1100,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "11",
+          "label": 12,
+          "enabled": true,
+          "image": [
+            55,
+            0
+          ],
+          "target": [
+            1110,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "12",
+          "label": 13,
+          "enabled": true,
+          "image": [
+            60,
+            0
+          ],
+          "target": [
+            1120,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "13",
+          "label": 14,
+          "enabled": true,
+          "image": [
+            65,
+            0
+          ],
+          "target": [
+            1130,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "14",
+          "label": 15,
+          "enabled": true,
+          "image": [
+            70,
+            0
+          ],
+          "target": [
+            1140,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "15",
+          "label": 16,
+          "enabled": true,
+          "image": [
+            75,
+            0
+          ],
+          "target": [
+            1150,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": false,
+      "qgisForward": [],
+      "qgisBackward": [],
+      "minimum": 10
+    },
+    {
+      "model": "polynomial3",
+      "case": "duplicate-conflict",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "1",
+          "label": 2,
+          "enabled": true,
+          "image": [
+            100,
+            0
+          ],
+          "target": [
+            1200,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "2",
+          "label": 3,
+          "enabled": true,
+          "image": [
+            0,
+            100
+          ],
+          "target": [
+            1000,
+            1700
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "3",
+          "label": 4,
+          "enabled": true,
+          "image": [
+            100,
+            100
+          ],
+          "target": [
+            1202,
+            1701
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "4",
+          "label": 5,
+          "enabled": true,
+          "image": [
+            50,
+            0
+          ],
+          "target": [
+            1100,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "5",
+          "label": 6,
+          "enabled": true,
+          "image": [
+            0,
+            50
+          ],
+          "target": [
+            1000,
+            1850
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "6",
+          "label": 7,
+          "enabled": true,
+          "image": [
+            50,
+            100
+          ],
+          "target": [
+            1100.5,
+            1700.5
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "7",
+          "label": 8,
+          "enabled": true,
+          "image": [
+            100,
+            50
+          ],
+          "target": [
+            1201,
+            1850.25
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "8",
+          "label": 9,
+          "enabled": true,
+          "image": [
+            25,
+            25
+          ],
+          "target": [
+            1050.03125,
+            1925.015625
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "9",
+          "label": 10,
+          "enabled": true,
+          "image": [
+            75,
+            25
+          ],
+          "target": [
+            1150.28125,
+            1925.046875
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "10",
+          "label": 11,
+          "enabled": true,
+          "image": [
+            25,
+            75
+          ],
+          "target": [
+            1050.09375,
+            1775.140625
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "11",
+          "label": 12,
+          "enabled": true,
+          "image": [
+            75,
+            75
+          ],
+          "target": [
+            1150.84375,
+            1775.421875
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "12",
+          "label": 13,
+          "enabled": true,
+          "image": [
+            50,
+            50
+          ],
+          "target": [
+            1100.25,
+            1850.125
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "13",
+          "label": 14,
+          "enabled": true,
+          "image": [
+            10,
+            30
+          ],
+          "target": [
+            1020.006,
+            1910.009
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "14",
+          "label": 15,
+          "enabled": true,
+          "image": [
+            90,
+            70
+          ],
+          "target": [
+            1181.134,
+            1790.441
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "15",
+          "label": 16,
+          "enabled": true,
+          "image": [
+            20,
+            80
+          ],
+          "target": [
+            1040.064,
+            1760.128
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "conflict",
+          "label": 17,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1100,
+            2100
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": true,
+      "qgisForward": [
+        [
+          true,
+          1040.4642465451934,
+          1910.4582465451936
+        ],
+        [
+          true,
+          1163.185295431339,
+          1792.6812954313386
+        ],
+        [
+          true,
+          1094.7722229810731,
+          1844.6472229810736
+        ]
+      ],
+      "qgisBackward": [
+        [
+          true,
+          23.001647374322847,
+          28.00300204027734
+        ],
+        [
+          true,
+          79.49582894221105,
+          70.3274122994223
+        ],
+        [
+          true,
+          47.654268031739846,
+          51.57090150226707
+        ]
+      ],
+      "minimum": 10
+    },
+    {
+      "model": "projective",
+      "case": "insufficient",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "1",
+          "label": 2,
+          "enabled": true,
+          "image": [
+            100,
+            0
+          ],
+          "target": [
+            1188.118811881188,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "2",
+          "label": 3,
+          "enabled": true,
+          "image": [
+            0,
+            100
+          ],
+          "target": [
+            1009.8039215686274,
+            1666.6666666666667
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": false,
+      "qgisForward": [],
+      "qgisBackward": [],
+      "minimum": 4
+    },
+    {
+      "model": "projective",
+      "case": "collinear",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "1",
+          "label": 2,
+          "enabled": true,
+          "image": [
+            5,
+            0
+          ],
+          "target": [
+            1010,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "2",
+          "label": 3,
+          "enabled": true,
+          "image": [
+            10,
+            0
+          ],
+          "target": [
+            1020,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "3",
+          "label": 4,
+          "enabled": true,
+          "image": [
+            15,
+            0
+          ],
+          "target": [
+            1030,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "4",
+          "label": 5,
+          "enabled": true,
+          "image": [
+            20,
+            0
+          ],
+          "target": [
+            1040,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "5",
+          "label": 6,
+          "enabled": true,
+          "image": [
+            25,
+            0
+          ],
+          "target": [
+            1050,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "6",
+          "label": 7,
+          "enabled": true,
+          "image": [
+            30,
+            0
+          ],
+          "target": [
+            1060,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "7",
+          "label": 8,
+          "enabled": true,
+          "image": [
+            35,
+            0
+          ],
+          "target": [
+            1070,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "8",
+          "label": 9,
+          "enabled": true,
+          "image": [
+            40,
+            0
+          ],
+          "target": [
+            1080,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "9",
+          "label": 10,
+          "enabled": true,
+          "image": [
+            45,
+            0
+          ],
+          "target": [
+            1090,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "10",
+          "label": 11,
+          "enabled": true,
+          "image": [
+            50,
+            0
+          ],
+          "target": [
+            1100,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "11",
+          "label": 12,
+          "enabled": true,
+          "image": [
+            55,
+            0
+          ],
+          "target": [
+            1110,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "12",
+          "label": 13,
+          "enabled": true,
+          "image": [
+            60,
+            0
+          ],
+          "target": [
+            1120,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "13",
+          "label": 14,
+          "enabled": true,
+          "image": [
+            65,
+            0
+          ],
+          "target": [
+            1130,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "14",
+          "label": 15,
+          "enabled": true,
+          "image": [
+            70,
+            0
+          ],
+          "target": [
+            1140,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "15",
+          "label": 16,
+          "enabled": true,
+          "image": [
+            75,
+            0
+          ],
+          "target": [
+            1150,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": true,
+      "qgisForward": [
+        [
+          true,
+          1075,
+          2000
+        ],
+        [
+          true,
+          1075,
+          2000
+        ],
+        [
+          true,
+          1075,
+          2000.0000000000002
+        ]
+      ],
+      "qgisBackward": [
+        [
+          false,
+          1075,
+          2000
+        ],
+        [
+          false,
+          1075,
+          2000
+        ],
+        [
+          false,
+          1075,
+          2000.0000000000002
+        ]
+      ],
+      "minimum": 4
+    },
+    {
+      "model": "projective",
+      "case": "duplicate-conflict",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "1",
+          "label": 2,
+          "enabled": true,
+          "image": [
+            100,
+            0
+          ],
+          "target": [
+            1188.118811881188,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "2",
+          "label": 3,
+          "enabled": true,
+          "image": [
+            0,
+            100
+          ],
+          "target": [
+            1009.8039215686274,
+            1666.6666666666667
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "3",
+          "label": 4,
+          "enabled": true,
+          "image": [
+            100,
+            100
+          ],
+          "target": [
+            1194.1747572815534,
+            1669.9029126213593
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "4",
+          "label": 5,
+          "enabled": true,
+          "image": [
+            50,
+            0
+          ],
+          "target": [
+            1094.5273631840798,
+            2000.0000000000002
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "5",
+          "label": 6,
+          "enabled": true,
+          "image": [
+            0,
+            50
+          ],
+          "target": [
+            1004.950495049505,
+            1831.6831683168316
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "6",
+          "label": 7,
+          "enabled": true,
+          "image": [
+            50,
+            100
+          ],
+          "target": [
+            1102.439024390244,
+            1668.2926829268295
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "7",
+          "label": 8,
+          "enabled": true,
+          "image": [
+            100,
+            50
+          ],
+          "target": [
+            1191.1764705882354,
+            1833.3333333333333
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "8",
+          "label": 9,
+          "enabled": true,
+          "image": [
+            25,
+            25
+          ],
+          "target": [
+            1049.6277915632757,
+            1915.632754342432
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "9",
+          "label": 10,
+          "enabled": true,
+          "image": [
+            75,
+            25
+          ],
+          "target": [
+            1143.20987654321,
+            1916.0493827160494
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "10",
+          "label": 11,
+          "enabled": true,
+          "image": [
+            25,
+            75
+          ],
+          "target": [
+            1054.0540540540542,
+            1749.3857493857497
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "11",
+          "label": 12,
+          "enabled": true,
+          "image": [
+            75,
+            75
+          ],
+          "target": [
+            1146.6992665036676,
+            1750.6112469437653
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "12",
+          "label": 13,
+          "enabled": true,
+          "image": [
+            50,
+            50
+          ],
+          "target": [
+            1098.5221674876848,
+            1832.5123152709361
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "13",
+          "label": 14,
+          "enabled": true,
+          "image": [
+            10,
+            30
+          ],
+          "target": [
+            1021.8470705064549,
+            1898.7090367428007
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "14",
+          "label": 15,
+          "enabled": true,
+          "image": [
+            90,
+            70
+          ],
+          "target": [
+            1173.998044965787,
+            1767.3509286412514
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "15",
+          "label": 16,
+          "enabled": true,
+          "image": [
+            20,
+            80
+          ],
+          "target": [
+            1045.1866404715126,
+            1732.8094302554027
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "conflict",
+          "label": 17,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1100,
+            2100
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": true,
+      "qgisForward": [
+        [
+          true,
+          1054.2266618035733,
+          1908.2676236630036
+        ],
+        [
+          true,
+          1153.3607555708968,
+          1762.9189439364648
+        ],
+        [
+          true,
+          1108.6464801889122,
+          1828.4782348394956
+        ]
+      ],
+      "qgisBackward": [
+        [
+          true,
+          20.000000000000107,
+          30.000000000000075
+        ],
+        [
+          true,
+          80.00000000000001,
+          70.00000000000004
+        ],
+        [
+          true,
+          50.00000000000001,
+          50.000000000000135
+        ]
+      ],
+      "minimum": 4
+    },
+    {
+      "model": "thinPlateSpline",
+      "case": "insufficient",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "1",
+          "label": 2,
+          "enabled": true,
+          "image": [
+            100,
+            0
+          ],
+          "target": [
+            1200,
+            2010
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": true,
+      "qgisForward": [
+        [
+          true,
+          1040,
+          2002
+        ],
+        [
+          true,
+          1160,
+          2008
+        ],
+        [
+          true,
+          1100,
+          2005
+        ]
+      ],
+      "qgisBackward": [
+        [
+          true,
+          20.000000000000004,
+          0
+        ],
+        [
+          true,
+          80.00000000000001,
+          0
+        ],
+        [
+          true,
+          50.000000000000014,
+          0
+        ]
+      ],
+      "minimum": 1
+    },
+    {
+      "model": "thinPlateSpline",
+      "case": "collinear",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "1",
+          "label": 2,
+          "enabled": true,
+          "image": [
+            5,
+            0
+          ],
+          "target": [
+            1010,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "2",
+          "label": 3,
+          "enabled": true,
+          "image": [
+            10,
+            0
+          ],
+          "target": [
+            1020,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "3",
+          "label": 4,
+          "enabled": true,
+          "image": [
+            15,
+            0
+          ],
+          "target": [
+            1030,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "4",
+          "label": 5,
+          "enabled": true,
+          "image": [
+            20,
+            0
+          ],
+          "target": [
+            1040,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "5",
+          "label": 6,
+          "enabled": true,
+          "image": [
+            25,
+            0
+          ],
+          "target": [
+            1050,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "6",
+          "label": 7,
+          "enabled": true,
+          "image": [
+            30,
+            0
+          ],
+          "target": [
+            1060,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "7",
+          "label": 8,
+          "enabled": true,
+          "image": [
+            35,
+            0
+          ],
+          "target": [
+            1070,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "8",
+          "label": 9,
+          "enabled": true,
+          "image": [
+            40,
+            0
+          ],
+          "target": [
+            1080,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "9",
+          "label": 10,
+          "enabled": true,
+          "image": [
+            45,
+            0
+          ],
+          "target": [
+            1090,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "10",
+          "label": 11,
+          "enabled": true,
+          "image": [
+            50,
+            0
+          ],
+          "target": [
+            1100,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "11",
+          "label": 12,
+          "enabled": true,
+          "image": [
+            55,
+            0
+          ],
+          "target": [
+            1110,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "12",
+          "label": 13,
+          "enabled": true,
+          "image": [
+            60,
+            0
+          ],
+          "target": [
+            1120,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "13",
+          "label": 14,
+          "enabled": true,
+          "image": [
+            65,
+            0
+          ],
+          "target": [
+            1130,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "14",
+          "label": 15,
+          "enabled": true,
+          "image": [
+            70,
+            0
+          ],
+          "target": [
+            1140,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "15",
+          "label": 16,
+          "enabled": true,
+          "image": [
+            75,
+            0
+          ],
+          "target": [
+            1150,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": false,
+      "qgisForward": [],
+      "qgisBackward": [],
+      "minimum": 1
+    },
+    {
+      "model": "thinPlateSpline",
+      "case": "duplicate-conflict",
+      "gcps": [
+        {
+          "id": "0",
+          "label": 1,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1000,
+            2000
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "1",
+          "label": 2,
+          "enabled": true,
+          "image": [
+            100,
+            0
+          ],
+          "target": [
+            1200,
+            2010
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "2",
+          "label": 3,
+          "enabled": true,
+          "image": [
+            0,
+            100
+          ],
+          "target": [
+            1000,
+            1700
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "3",
+          "label": 4,
+          "enabled": true,
+          "image": [
+            100,
+            100
+          ],
+          "target": [
+            1220,
+            1710
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "4",
+          "label": 5,
+          "enabled": true,
+          "image": [
+            50,
+            0
+          ],
+          "target": [
+            1100,
+            2002.5
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "5",
+          "label": 6,
+          "enabled": true,
+          "image": [
+            0,
+            50
+          ],
+          "target": [
+            1000,
+            1850
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "6",
+          "label": 7,
+          "enabled": true,
+          "image": [
+            50,
+            100
+          ],
+          "target": [
+            1110,
+            1702.5
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "7",
+          "label": 8,
+          "enabled": true,
+          "image": [
+            100,
+            50
+          ],
+          "target": [
+            1210,
+            1860
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "8",
+          "label": 9,
+          "enabled": true,
+          "image": [
+            25,
+            25
+          ],
+          "target": [
+            1051.25,
+            1925.625
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "9",
+          "label": 10,
+          "enabled": true,
+          "image": [
+            75,
+            25
+          ],
+          "target": [
+            1153.75,
+            1930.625
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "10",
+          "label": 11,
+          "enabled": true,
+          "image": [
+            25,
+            75
+          ],
+          "target": [
+            1053.75,
+            1775.625
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "11",
+          "label": 12,
+          "enabled": true,
+          "image": [
+            75,
+            75
+          ],
+          "target": [
+            1161.25,
+            1780.625
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "12",
+          "label": 13,
+          "enabled": true,
+          "image": [
+            50,
+            50
+          ],
+          "target": [
+            1105,
+            1852.5
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "13",
+          "label": 14,
+          "enabled": true,
+          "image": [
+            10,
+            30
+          ],
+          "target": [
+            1020.6,
+            1910.1
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "14",
+          "label": 15,
+          "enabled": true,
+          "image": [
+            90,
+            70
+          ],
+          "target": [
+            1192.6,
+            1798.1
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "15",
+          "label": 16,
+          "enabled": true,
+          "image": [
+            20,
+            80
+          ],
+          "target": [
+            1043.2,
+            1760.4
+          ],
+          "crs": "EPSG:3857"
+        },
+        {
+          "id": "conflict",
+          "label": 17,
+          "enabled": true,
+          "image": [
+            0,
+            0
+          ],
+          "target": [
+            1100,
+            2100
+          ],
+          "crs": "EPSG:3857"
+        }
+      ],
+      "checkpoints": [
+        [
+          20,
+          30
+        ],
+        [
+          80,
+          70
+        ],
+        [
+          50,
+          50
+        ]
+      ],
+      "valid": false,
+      "qgisForward": [],
+      "qgisBackward": [],
+      "minimum": 1
+    }
+  ]
+}

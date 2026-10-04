@@ -1,0 +1,6 @@
+packages:
+  - packages/*
+
+# Keep dependency installation reproducible and permit only the required native build.
+allowBuilds:
+  esbuild: true

@@ -1,0 +1,26 @@
+{
+  "name": "@georeferencing/documentation",
+  "version": "0.1.0-alpha.2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "typedoc",
+    "check": "typedoc --emit none",
+    "dev": "pnpm build && node scripts/dev.mjs",
+    "preview": "vite dist --host 127.0.0.1 --port 4174 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/check.mjs"
+  },
+  "devDependencies": {
+    "@georeferencing/core": "workspace:*",
+    "typedoc": "0.28.20",
+    "typescript": "5.9.3",
+    "vite": "8.3.2",
+    "@types/react": "19.2.14",
+    "react": "19.3.0",
+    "ol": "10.10.0",
+    "@georeferencing/react": "workspace:*",
+    "@georeferencing/plugins": "workspace:*",
+    "@playwright/test": "1.63.0"
+  }
+}
