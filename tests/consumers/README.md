@@ -9,6 +9,9 @@ Run `pnpm test:consumer` from the repository root. The shared runner in
 contents, and copies these fixtures to independent temporary directories. It
 injects absolute tarball dependencies and installs there without workspace links.
 It also copies and typechecks the documentation examples in the React consumer.
+Temporary installs use `--no-frozen-lockfile` because the runner generates and
+changes their manifests and overrides. Run `CI=true pnpm test:consumer` to verify
+the same behavior under CI defaults.
 
 - `react/`: explicit compatibility versions, a React/OpenLayers host, Vite build,
   SSR import checks, and a server that enforces the deployment prefix and CSP.

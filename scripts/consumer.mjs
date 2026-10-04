@@ -73,7 +73,10 @@ writeFileSync(
     2,
   ),
 );
-run("pnpm", ["install", "--ignore-scripts"]);
+// These temporary projects generate and change manifests/overrides during the test,
+// so their lockfiles must remain writable even under pnpm's CI defaults.
+const installArgs = ["install", "--ignore-scripts", "--no-frozen-lockfile"];
+run("pnpm", installArgs);
 const installedCore = join(directory, "node_modules/@georeferencing/core");
 const installedManifest = JSON.parse(
   readFileSync(join(installedCore, "package.json"), "utf8"),
@@ -148,7 +151,7 @@ writeFileSync(
     },
   }),
 );
-execFileSync("pnpm", ["install", "--ignore-scripts"], {
+execFileSync("pnpm", installArgs, {
   cwd: headlessDirectory,
   stdio: "inherit",
 });
@@ -211,7 +214,7 @@ writeFileSync(
     2,
   ),
 );
-execFileSync("pnpm", ["install", "--ignore-scripts"], {
+execFileSync("pnpm", installArgs, {
   cwd: headlessDirectory,
   stdio: "inherit",
 });
