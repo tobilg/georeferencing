@@ -33,8 +33,9 @@ polygons that your application persists.
 
 All three packages are released together with the same version number. **Always
 install the same version of every `@georeferencing/*` package.** Plugins and
-React depend on core; mismatched versions can install a second copy of core with a
-separate proj4 projection registry. See
+React declare core as a peer dependency, so your application provides the single
+copy of core they share; a mismatched version produces a peer-dependency warning
+instead of a silent second copy with a separate proj4 projection registry. See
 [keep package versions aligned](https://georeferencing-api-docs.gh.tobilg.com/Getting_started/#keep-package-versions-aligned).
 
 ## Install

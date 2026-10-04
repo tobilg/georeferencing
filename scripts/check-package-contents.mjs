@@ -60,7 +60,10 @@ for (const name of ["core", "plugins", "react"]) {
   assert.equal(manifest.name, `@georeferencing/${name}`);
   assert.equal(manifest.version, source.version);
   assert.notEqual(manifest.private, true);
-  for (const dependency of Object.values(manifest.dependencies ?? {}))
+  for (const dependency of [
+    ...Object.values(manifest.dependencies ?? {}),
+    ...Object.values(manifest.peerDependencies ?? {}),
+  ])
     assert(
       !/^(workspace:|file:|link:)/.test(dependency),
       `Local dependency in ${name}`,

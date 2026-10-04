@@ -1,4 +1,5 @@
 ---
+group: Guides
 title: Getting started
 ---
 
@@ -46,14 +47,14 @@ them together:
 pnpm add @georeferencing/core@<version> @georeferencing/plugins@<version> @georeferencing/react@<version>
 ```
 
-Plugins and React declare core as a regular dependency. When the versions differ,
-your package manager can install a second copy of core, which then also bundles
-its own proj4 projection registry. The host's controller, map binding and export
-plugins would no longer share registered projections or datum grids, and the
-application ships the processing code twice. Check for a single copy with
-`pnpm why @georeferencing/core` (or `npm ls @georeferencing/core`); a pnpm
-`overrides` entry or npm `overrides` field can force one version if a transitive
-dependency pulls in another.
+Plugins and React declare core as a **peer dependency**: they always use the copy
+your application installs, so the controller, map binding and export plugins share
+one proj4 projection registry and one set of datum grids. Install core explicitly
+alongside them (npm 7+ and pnpm also install missing peers automatically). When the
+versions differ, the package manager reports a peer-dependency conflict instead of
+silently installing a second copy. Check with `pnpm why @georeferencing/core` (or
+`npm ls @georeferencing/core`); a pnpm `overrides` entry or npm `overrides` field can
+force one version if a transitive dependency pulls in another.
 
 ## Guided four-step layout
 

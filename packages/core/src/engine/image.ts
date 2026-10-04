@@ -272,7 +272,9 @@ export function maskSourceNoData(
 /**
  * Decode supported inspected bytes to orientation-normalized RGBA, optionally downsampled for preview.
  *
- * Call inspectImage/checkBudget first. EXIF is stripped from temporary decode copies and applied explicitly for consistent browser behavior; original bytes remain untouched. Browser bitmap/canvas resources are released after extraction.
+ * Call inspectImage/checkBudget first. EXIF is stripped from temporary decode copies and applied explicitly for consistent browser behavior; original bytes remain untouched. Embedded ICC profiles and gamma are not applied. Browser bitmap/canvas resources are released after extraction.
+ *
+ * Browser canvases store premultiplied alpha, so color samples of partially transparent PNG/WebP pixels can be rounded; fully opaque and fully transparent pixels are exact. TIFF input is decoded without a canvas.
  */
 export async function decodeImage(
   file: File,
@@ -365,7 +367,12 @@ export async function decodeImage(
   }
   let bitmap: ImageBitmap | OffscreenCanvas;
   try {
-    bitmap = await createImageBitmap(decodeSource);
+    // Keep encoded sample values: no ICC/gamma conversion and no premultiplication
+    // before drawing, matching GDAL, which ignores embedded color profiles.
+    bitmap = await createImageBitmap(decodeSource, {
+      colorSpaceConversion: "none",
+      premultiplyAlpha: "none",
+    });
   } catch (error) {
     if (metadata.format !== "jpeg") throw error;
     const { decode } = await import("jpeg-js");
@@ -414,6 +421,8 @@ export async function decodeImage(
       [0, -1, -1, 0, h, w],
       [0, -1, 1, 0, 0, w],
     ];
+    // Previews are reduced; full-resolution draws use integer transforms and stay exact.
+    ctx.imageSmoothingQuality = "high";
     ctx.scale(width / metadata.width, height / metadata.height);
     ctx.transform(...matrices[metadata.orientation - 1]);
     ctx.drawImage(bitmap, 0, 0);

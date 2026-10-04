@@ -8,6 +8,7 @@ import type {
 import { GeoreferencerController } from "../packages/core/src/core/controller.js";
 import { fitTransform } from "../packages/core/src/core/transform.js";
 import type { ImageMetadata } from "../packages/core/src/core/types.js";
+import { DEFAULT_LIMITS } from "../packages/core/src/core/types.js";
 import type {
   Engine,
   EngineResult,
@@ -634,6 +635,210 @@ describe("FIT-02 explicit preview policy", () => {
     expect(c.getSnapshot().fitting).toBe("failed");
     expect(() => c.confirm()).toThrow(/valid fit/);
     expect(c.getSnapshot().preview).toBeNull();
+    c.dispose();
+  });
+});
+describe("save concurrency and control-point validation", () => {
+  it("a different save kind waits for the in-flight save instead of sharing it", async () => {
+    const wait = deferred<void>(),
+      calls: string[] = [];
+    const c = await ready({
+      onSaveDraft: async () => {
+        calls.push("draft");
+        await wait.promise;
+      },
+      onSave: async () => {
+        calls.push("features");
+      },
+    });
+    addPoint(c, "one");
+    c.reviewFeatures();
+    const draft = c.save("draft");
+    const features = c.save("features");
+    await Promise.resolve();
+    expect(calls).toEqual(["draft"]);
+    wait.resolve();
+    await Promise.all([draft, features]);
+    expect(calls).toEqual(["draft", "features"]);
+    expect(c.getSnapshot().savedRevision).toBe(
+      c.getSnapshot().document.documentRevision,
+    );
+    c.dispose();
+  });
+  it("an ineligible features save rejects even while a draft save is running", async () => {
+    const wait = deferred<void>(),
+      save = vi.fn(async () => {});
+    const c = await ready({
+      onSaveDraft: () => wait.promise,
+      onSave: save,
+      drawingBounds: [10, 10, 20, 20],
+    });
+    addPoint(c, "outside");
+    const draft = c.save("draft");
+    const features = c.save("features");
+    wait.resolve();
+    await draft;
+    await expect(features).rejects.toThrow(/drawing bounds/);
+    expect(save).not.toHaveBeenCalled();
+    c.dispose();
+  });
+  it("a save for a newer revision submits that revision after the older one", async () => {
+    const wait = deferred<void>(),
+      revisions: number[] = [];
+    const c = await ready({
+      onSave: async (s) => {
+        revisions.push(s.documentRevision);
+        if (revisions.length === 1) await wait.promise;
+      },
+    });
+    addPoint(c, "one");
+    c.reviewFeatures();
+    const first = c.save();
+    const same = c.save();
+    addPoint(c, "two");
+    c.reviewFeatures();
+    const second = c.save();
+    wait.resolve();
+    await Promise.all([first, same, second]);
+    expect(revisions).toHaveLength(2);
+    expect(revisions[1]).toBe(c.getSnapshot().document.documentRevision);
+    expect(c.getSnapshot().dirty).toBe(false);
+    c.dispose();
+  });
+  it("rejects invalid control-point edits without changing the document", async () => {
+    const c = await ready();
+    c.returnToAlignment();
+    const before = c.getSnapshot().document;
+    const [first, second] = before.gcps;
+    expect(() => c.updateGcp(first.id, { target: [Number.NaN, 0] })).toThrow(
+      /finite/,
+    );
+    expect(() => c.updateGcp(first.id, { crs: " " })).toThrow(/CRS/);
+    expect(() => c.replaceGcps([first, { ...second, id: first.id }])).toThrow(
+      /unique/,
+    );
+    expect(c.getSnapshot().document).toBe(before);
+    c.dispose();
+  });
+  it("uses the engine's configured control-point budget", async () => {
+    const limited = { ...engine(), limits: { ...DEFAULT_LIMITS, maxGcps: 3 } };
+    const c = new GeoreferencerController({
+      workingCrs: "EPSG:3857",
+      engine: limited,
+    });
+    await c.loadImage(file);
+    expect(() => c.replaceGcps(fixture("polynomial1").slice(0, 4))).toThrow(
+      /Maximum 3 GCPs/,
+    );
+    c.replaceGcps(fixture("polynomial1").slice(0, 3));
+    expect(() => c.addGcp([1, 2], [3, 4])).toThrow(/Maximum 3 GCPs/);
+    expect(c.getSnapshot().document.gcps).toHaveLength(3);
+    c.dispose();
+  });
+  it("feature errors are computed once per feature revision", async () => {
+    const c = await ready();
+    addPoint(c, "one");
+    const errors = c.getFeatureErrors();
+    expect(errors).toEqual([]);
+    expect(c.getFeatureErrors()).toBe(errors);
+    c.setFeatures({
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          id: "bowtie",
+          properties: {},
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [0, 0],
+                [1, 1],
+                [1, 0],
+                [0, 1],
+                [0, 0],
+              ],
+            ],
+          },
+        },
+      ],
+    });
+    expect(c.getFeatureErrors().join(" ")).toMatch(/self-intersecting/);
+    expect(c.canSaveFeatures()).toBe(false);
+    c.dispose();
+  });
+  it("confirmation and review are not undo steps", async () => {
+    const c = await ready();
+    const gcps = c.getSnapshot().document.gcps;
+    c.returnToAlignment();
+    c.updateGcp(gcps[0].id, { enabled: false });
+    await vi.waitFor(() => expect(c.getSnapshot().fit).not.toBeNull());
+    c.confirm();
+    c.undo();
+    expect(c.getSnapshot().document.gcps[0].enabled).toBe(true);
+    c.dispose();
+  });
+});
+describe("full-resolution detail image", () => {
+  it("displays unrotated originals directly and survives suspend/start", async () => {
+    const implementation = engine(),
+      run = vi.spyOn(implementation, "run");
+    const c = new GeoreferencerController({
+      workingCrs: "EPSG:3857",
+      engine: implementation,
+      guard: async () => "discard",
+    });
+    await c.loadImage(file);
+    run.mockClear();
+    await c.requestDetailImage();
+    const url = c.getSnapshot().detailImageUrl;
+    expect(url).toMatch(/^blob:/);
+    expect(run).not.toHaveBeenCalled();
+    await c.requestDetailImage();
+    expect(c.getSnapshot().detailImageUrl).toBe(url);
+    c.suspend();
+    expect(c.getSnapshot().detailImageUrl).toBeNull();
+    c.start();
+    expect(c.getSnapshot().detailImageUrl).toMatch(/^blob:/);
+    expect(await c.removeImage()).toBe(true);
+    expect(c.getSnapshot().detailImageUrl).toBeNull();
+    c.dispose();
+  });
+  it("normalizes rotated inputs in the engine and reports failures once", async () => {
+    const implementation = engine(),
+      base = implementation.run;
+    let fail = true;
+    const normalize = vi.fn();
+    implementation.run = async (request, tag, options) => {
+      if (request.kind === "inspect")
+        return {
+          metadata: { ...metadata, id: "rotated", orientation: 6 },
+          imagePreview: new Blob(["preview"]),
+          elapsedMs: 1,
+        };
+      if (request.kind === "normalize") {
+        normalize();
+        if (fail) throw Error("over budget");
+        return { blob: new Blob(["png"]), elapsedMs: 1 };
+      }
+      return base(request, tag, options);
+    };
+    const c = new GeoreferencerController({
+      workingCrs: "EPSG:3857",
+      engine: implementation,
+      guard: async () => "discard",
+    });
+    await c.loadImage(file);
+    await c.requestDetailImage();
+    await c.requestDetailImage();
+    expect(normalize).toHaveBeenCalledTimes(1);
+    expect(c.getSnapshot().error).toBe("over budget");
+    expect(c.getSnapshot().detailImageUrl).toBeNull();
+    fail = false;
+    expect(await c.loadImage(new File(["other"], "other.png"))).toBe(true);
+    await c.requestDetailImage();
+    expect(normalize).toHaveBeenCalledTimes(2);
+    expect(c.getSnapshot().detailImageUrl).toMatch(/^blob:/);
     c.dispose();
   });
 });

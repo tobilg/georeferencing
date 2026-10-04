@@ -89,6 +89,31 @@ it("AC-22 world file describes first pixel center and rotation; rejects unsuppor
     ),
   ).toThrow();
 });
+it("affine world files are opt-in and exact", () => {
+  const fit = fitTransform(fixture("polynomial1"), "polynomial1"),
+    result = worldFile(fit, "EPSG:3857", "urn:ogc:def:crs:EPSG::3857", {
+      affine: true,
+    });
+  const [a, d, b, e, c, f] = result.text.trim().split("\n").map(Number);
+  // known.polynomial1: X = 1000 + 2x + 0.3y, Y = 2000 + 0.2x - 3y
+  for (const [x, y] of [
+    [0.5, 0.5],
+    [80, 20],
+  ]) {
+    const px = x - 0.5,
+      py = y - 0.5;
+    expect(a * px + b * py + c).toBeCloseTo(1000 + 2 * x + 0.3 * y, 6);
+    expect(d * px + e * py + f).toBeCloseTo(2000 + 0.2 * x - 3 * y, 6);
+  }
+  expect(() =>
+    worldFile(
+      fitTransform(fixture("polynomial2"), "polynomial2"),
+      "EPSG:3857",
+      "EPSG:3857",
+      { affine: true },
+    ),
+  ).toThrow(/affine/);
+});
 it("AC-26 supplied projected CRS converts; unknown and wrapped CRS fails explicitly", () => {
   const definitions = {
     "EPSG:25832": "+proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs +type=crs",

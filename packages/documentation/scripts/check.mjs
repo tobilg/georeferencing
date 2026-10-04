@@ -118,6 +118,34 @@ try {
   await expect(
     page.getByRole("heading", { name: "Georeferencing API", exact: true }),
   ).toBeVisible();
+  // The landing page has a single title and documents only the public packages.
+  await expect(page.locator(".col-content h1")).toHaveCount(1);
+  const landing = await page.locator(".col-content").innerText();
+  for (const name of ["@georeferencing/demo", "@georeferencing/documentation"])
+    assert(!landing.includes(name), `Landing page mentions private ${name}`);
+  // Navigation: guides, then one group per public package with its entry points.
+  // Sidebar labels contain zero-width breaks after "/" (theme/navigation.js).
+  const navigation = page.locator(
+    ".site-menu nav.tsd-navigation:not(#tsd-sidebar-links)",
+  );
+  await expect(navigation.locator("summary").first()).toBeVisible();
+  const groups = await navigation
+    .locator(":scope > ul > li > details > summary")
+    .evaluateAll((elements) =>
+      elements.map((element) =>
+        element.textContent.replaceAll("\u200b", "").trim(),
+      ),
+    );
+  assert.deepEqual(groups, [
+    "Guides",
+    "@georeferencing/core",
+    "@georeferencing/plugins",
+    "@georeferencing/react",
+  ]);
+  assert(
+    !(await navigation.innerText()).includes("packages/"),
+    "Navigation contains a source-path module",
+  );
   await page
     .getByRole("link", { name: "integration guide", exact: true })
     .click();
@@ -137,7 +165,9 @@ try {
     .first();
   await expect(result).toBeVisible();
   await result.click();
-  await expect(page).toHaveURL(/\/core\/GeoreferencerController\//);
+  await expect(page).toHaveURL(
+    /\/_georeferencing\/core\/GeoreferencerController\//,
+  );
   await expect(
     page
       .getByText("Authoritative editor store with revision-safe processing", {
@@ -145,20 +175,22 @@ try {
       })
       .first(),
   ).toBeVisible();
-  await page.goto(`${base}openlayers/WfsReference/`);
+  await page.goto(`${base}_georeferencing/core/openlayers/WfsReference/`);
   await expect(
     page.getByRole("heading", { name: "Interface WfsReference", exact: false }),
   ).toBeVisible();
   await expect(page.locator("#axisorder")).toBeAttached();
   for (const route of [
     "react/Georeferencer",
-    "geotiff/geoTiff",
-    "jpeg/jpeg",
-    "pdf/pdf",
+    "plugins/geotiff/geoTiff",
+    "plugins/jpeg/jpeg",
+    "plugins/pdf/pdf",
+    "plugins/tiff/encodeGeoTiffBlob",
+    "plugins/report/createPdfReport",
   ]) {
-    await page.goto(`${base}${route}/`);
+    await page.goto(`${base}_georeferencing/${route}/`);
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      route.split("/")[1],
+      route.split("/").at(-1),
     );
   }
   assert.deepEqual(

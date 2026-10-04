@@ -1,40 +1,21 @@
+/**
+ * Low-level GeoTIFF encoding and TIFF creation-option validation, used by the GeoTIFF worker.
+ * Import from `@georeferencing/plugins/tiff`.
+ * @module @georeferencing/plugins/tiff
+ * @group @georeferencing/plugins
+ */
 import type { Extent, OutputSettings } from "@georeferencing/core";
 import { fail } from "@georeferencing/core";
-/**
- * Supported TIFF strip creation and no-data options, shared with raster output settings.
- */
-export type TiffOptions = Pick<
-  OutputSettings,
-  "compression" | "noData" | "rowsPerStrip" | "predictor"
->;
-const compressionCodes = { none: 1, deflate: 8, packbits: 32773 };
-/**
- * Validate byte no-data, strip height, compression and predictor compatibility before
- * encoding.
- */
-export function validateTiffOptions(options: TiffOptions): void {
-  if (!Object.hasOwn(compressionCodes, options.compression ?? "none"))
-    fail("OUTPUT", "Unsupported TIFF compression.");
-  if (
-    options.noData !== undefined &&
-    (!Number.isInteger(options.noData) ||
-      options.noData < 0 ||
-      options.noData > 255)
-  )
-    fail("NODATA", "Byte-image no-data must be an integer from 0 to 255.");
-  if (
-    options.rowsPerStrip !== undefined &&
-    (!Number.isInteger(options.rowsPerStrip) ||
-      options.rowsPerStrip < 1 ||
-      options.rowsPerStrip > 4096)
-  )
-    fail("OUTPUT", "Rows per strip must be an integer from 1 to 4096.");
-  if (
-    ![1, 2].includes(options.predictor ?? 1) ||
-    (options.predictor === 2 && options.compression !== "deflate")
-  )
-    fail("OUTPUT", "Horizontal prediction requires Deflate compression.");
-}
+import type { TiffOptions } from "./tiff-options.js";
+import {
+  compressionCodes,
+  geoTiffEpsg,
+  validateTiffOptions,
+} from "./tiff-options.js";
+
+export type { TiffOptions } from "./tiff-options.js";
+export { geoTiffEpsg, validateTiffOptions } from "./tiff-options.js";
+
 function check(
   data: Uint8ClampedArray,
   width: number,
@@ -101,7 +82,7 @@ export function encodeGeoTiff(
  * @param geographic - True for geographic CRS GeoKeys, false for projected CRS GeoKeys; must agree with crs.
  * @param options - Compression, strip height, predictor and optional RGB no-data.
  * @param progress - Encoding progress fraction per completed strip.
- * @throws {@link core.GeoreferenceError} For invalid layouts/settings, unavailable Deflate or partial transparency with numeric no-data.
+ * @throws {@link "@georeferencing/core".GeoreferenceError} For invalid layouts/settings, unavailable Deflate or partial transparency with numeric no-data.
  */
 export async function encodeGeoTiffBlob(
   data: Uint8ClampedArray,
@@ -240,8 +221,8 @@ function tiffHeader(
   rows: number,
   channels: number,
 ): ArrayBuffer {
-  const epsg = Number(/^EPSG:(\d+)$/.exec(crs)?.[1]);
-  if (!epsg || epsg >= 32767)
+  const epsg = geoTiffEpsg(crs);
+  if (!epsg)
     fail(
       "CRS",
       "GeoTIFF requires an EPSG code below 32767 with a registered definition.",

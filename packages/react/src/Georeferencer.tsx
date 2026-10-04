@@ -3,6 +3,7 @@ import type {
   GeoreferencerController,
   GuardContext,
   Model,
+  Tool,
 } from "@georeferencing/core";
 import { MODELS } from "@georeferencing/core";
 import type { BindingOptions } from "@georeferencing/core/openlayers";
@@ -95,6 +96,14 @@ export interface GeoreferencerProps {
   onExport?: (result: ExportResult) => void | Promise<void>;
 }
 
+/** Activate a tool from an effect, reporting instead of throwing into React. */
+function selectTool(controller: GeoreferencerController, tool: Tool): void {
+  try {
+    controller.setTool(tool);
+  } catch (error) {
+    controller.reportError(error);
+  }
+}
 /**
  * Ready-made React editor for an existing OpenLayers map. Composes image, GCP, alignment, reference, output and optional drawing controls.
  *
@@ -145,7 +154,7 @@ export function Georeferencer({
     setMobileView("image");
     // A metadata-only restored document still needs its matching local bytes.
     if (imageId && imageReady && controller.getSnapshot().mode === "align")
-      controller.setTool("gcp");
+      selectTool(controller, "gcp");
   }, [controller, guided, imageId, imageReady]);
   useEffect(() => {
     if (guided) setMobileView(s.pendingImagePoint ? "map" : "image");
@@ -153,18 +162,25 @@ export function Georeferencer({
   // Matching always uses the point tool; dragging pans, so no separate pan mode is needed.
   useEffect(() => {
     if (guided && step === 1 && s.tool !== "gcp" && s.mode === "align")
-      controller.setTool("gcp");
+      selectTool(controller, "gcp");
   }, [controller, guided, step, s.tool, s.mode]);
   useEffect(() => {
     if (guided && mobileView === "map") referenceMap.updateSize();
   }, [guided, mobileView, referenceMap]);
   useEffect(() => {
     controller.start();
-    binding.current = attachReferenceMap(
-      referenceMap,
-      controller,
-      bindingOptions,
-    );
+    try {
+      binding.current = attachReferenceMap(
+        referenceMap,
+        controller,
+        bindingOptions,
+      );
+    } catch (error) {
+      // Invalid projection or datum-grid configuration: keep the editor mounted and
+      // show the error instead of unmounting the host tree.
+      binding.current = null;
+      controller.reportError(error);
+    }
     return () => {
       binding.current?.detach();
       binding.current = null;

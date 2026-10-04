@@ -1,6 +1,7 @@
 /**
  * Optional PDF report; import from `@georeferencing/plugins/pdf`.
- * @module pdf
+ * @module @georeferencing/plugins/pdf
+ * @group @georeferencing/plugins
  */
 import type { ExportFormat } from "@georeferencing/core";
 import type { ReportMap, ReportOptions } from "./report.js";

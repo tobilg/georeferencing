@@ -1,4 +1,5 @@
 ---
+group: Guides
 title: Image lifecycle and saving
 ---
 
@@ -35,7 +36,7 @@ After returning to alignment and changing it, existing drawings remain geographi
 
 The host receives a frozen snapshot. For accepted features, `SaveEnvelope` includes the document ID/revision, standard geographic GeoJSON, source/alignment provenance, processing engine version and diagnostic formula/CRS.
 
-Implement `replace-document-features` only within the supplied document ID. Omitted IDs mean deletions from that document's prior accepted set, including an empty set. Never clear unrelated host data. Use the provided `requestId` as an idempotency key: retrying the same document/revision/save kind reuses it. Concurrent save calls share the pending request; an edit made while it runs requires another explicit save afterwards.
+Implement `replace-document-features` only within the supplied document ID. Omitted IDs mean deletions from that document's prior accepted set, including an empty set. Never clear unrelated host data. Use the provided `requestId` as an idempotency key: retrying the same document/revision/save kind reuses it. A save call for the same document, revision and kind as the pending request shares it. Any other call (a different kind, or a newer revision) waits for the pending request to settle and then submits its own snapshot, so a features save is never silently satisfied by a draft save. An edit made while a save runs requires another explicit save afterwards.
 
 Resolve only when the submitted snapshot is durably accepted by your storage; reject on failure. The controller reports failure and retains the draft. Success acknowledges only the revision that was submitted. Newer edits remain dirty, and completion from an old document cannot mark a replacement document saved.
 

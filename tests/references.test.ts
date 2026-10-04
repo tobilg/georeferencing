@@ -123,6 +123,38 @@ describe("AC-07/08/26 references", () => {
       ),
     ).rejects.toThrow(/stable IDs/);
   });
+  it("GeoJSON text resembling an exception is data; unregistered response CRSs fail", async () => {
+    const collection = (extra: object = {}) =>
+      new Response(
+        JSON.stringify({
+          type: "FeatureCollection",
+          features: [
+            { ...feature("x"), properties: { note: "<Exception> sign" } },
+          ],
+          ...extra,
+        }),
+      );
+    const result = await loadWfs(
+      { ...base, request: async () => collection() },
+      query(),
+      "EPSG:3857",
+    );
+    expect(result.features[0].get("note")).toBe("<Exception> sign");
+    await expect(
+      loadWfs(
+        {
+          ...base,
+          responseCrs: undefined,
+          request: async () =>
+            collection({
+              crs: { type: "name", properties: { name: "EPSG:31468" } },
+            }),
+        },
+        query(),
+        "EPSG:3857",
+      ),
+    ).rejects.toThrow(/Register the WFS response projection 'EPSG:31468'/);
+  });
   it("checks cancellation after a loader ignores abort; repeated pages and WFS1.1 signal partial", async () => {
     const abort = new AbortController();
     await expect(

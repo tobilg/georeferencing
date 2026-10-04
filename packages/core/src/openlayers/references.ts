@@ -320,7 +320,10 @@ async function responseText(
     await reader.cancel().catch(() => {});
     reader.releaseLock();
   }
+  // Only XML bodies can be OGC exception reports; GeoJSON property values may contain
+  // the same words. Services may still answer a JSON request with an XML exception.
   if (
+    text.trimStart().startsWith("<") &&
     /<(?:\w+:)?(?:ExceptionReport|ServiceExceptionReport|Exception|ServiceException)\b/i.test(
       text,
     )
@@ -440,7 +443,7 @@ export type Reference =
 /**
  * Project the map viewport into the provider query CRS and intersect optional bounds. Fixed loading uses configured bounds directly.
  * @returns Query extent or null when the viewport intersection is empty.
- * @throws {@link core.GeoreferenceError} For invalid/wrapped bounds, missing CRS definitions or fixed loading without bounds.
+ * @throws {@link "@georeferencing/core".GeoreferenceError} For invalid/wrapped bounds, missing CRS definitions or fixed loading without bounds.
  */
 export function queryBounds(
   provider: WfsReference | CustomReference,
@@ -603,12 +606,18 @@ export async function loadWfs(
           f.geometry.coordinates = swap(f.geometry.coordinates);
         }
       }
+      const dataProjection = normalizeCrs(
+        provider.responseCrs ??
+          data.crs?.properties?.name ??
+          provider.requestCrs,
+      );
+      if (!getProjection(dataProjection))
+        fail(
+          "CRS",
+          `Register the WFS response projection '${dataProjection}'.`,
+        );
       parsed = new GeoJSON().readFeatures(data, {
-        dataProjection: normalizeCrs(
-          provider.responseCrs ??
-            data.crs?.properties?.name ??
-            provider.requestCrs,
-        ),
+        dataProjection,
         featureProjection: mapCrs,
       });
     } else {

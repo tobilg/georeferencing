@@ -6,7 +6,7 @@ import { fail } from "../core/types.js";
  *
  * Estimate: input pixels × 20 + output pixels × (24 for Deflate, otherwise 12) + compressed file bytes × 2. This accounts for expected copies, not measured heap or GPU use.
  * @returns Estimated peak bytes.
- * @throws {@link core.GeoreferenceError} For invalid dimensions or exceeded budgets.
+ * @throws {@link "@georeferencing/core".GeoreferenceError} For invalid dimensions or exceeded budgets.
  */
 export function checkBudget(
   width: number,

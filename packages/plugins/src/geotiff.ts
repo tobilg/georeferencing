@@ -1,8 +1,10 @@
 /**
  * Optional GeoTIFF export; import from `@georeferencing/plugins/geotiff`.
- * @module geotiff
+ * @module @georeferencing/plugins/geotiff
+ * @group @georeferencing/plugins
  */
 import type { ExportFormat } from "@georeferencing/core";
+import { geoTiffUnavailable } from "./tiff-options.js";
 import type { RasterPluginOptions } from "./types.js";
 
 export type { RasterPluginOptions } from "./types.js";
@@ -17,6 +19,7 @@ export function geoTiff(options: RasterPluginOptions = {}): ExportFormat {
     id: "geotiff",
     label: "Export GeoTIFF",
     raster: true,
+    unavailable: (document) => geoTiffUnavailable(document.output),
     load: async () => {
       const { renderAndEncode } = await import("./raster-export.js");
       return {

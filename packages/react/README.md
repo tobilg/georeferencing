@@ -30,9 +30,10 @@ Importing the package is SSR-safe. Create maps and start browser processing only
 on the client.
 
 **Install the same version of `@georeferencing/react`, `@georeferencing/core` and
-`@georeferencing/plugins`**, and upgrade them together. React depends on core and
-re-exports its controller; a mismatched version can install a second copy of core
-with a separate projection registry. See
+`@georeferencing/plugins`**, and upgrade them together. React declares core as a peer
+dependency and re-exports its controller; a mismatched version is reported as a
+peer-dependency conflict rather than installing a second core with a separate
+projection registry. See
 [keep package versions aligned](https://georeferencing-api-docs.gh.tobilg.com/Getting_started/#keep-package-versions-aligned).
 
 ## Integrate with a host-owned map
@@ -176,7 +177,10 @@ sticky bar:
 Completed steps in the step bar are clickable. Desktop keeps both views side by
 side; below 720 px, Image/Map buttons switch panes and follow pending points.
 In both views, dragging pans and scrolling zooms; a click without dragging places
-a point.
+a point. Zooming the image beyond the reduced preview's resolution loads the
+full-resolution image (`controller.requestDetailImage()`), and source pixels are shown
+crisply once each covers several screen pixels, so points can be placed at the
+original resolution.
 
 OpenLayers' `Map` creates its default interactions with `onFocusOnly: true`. If
 the map target has a `tabindex` (for keyboard navigation), mouse panning and wheel

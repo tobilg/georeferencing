@@ -1,6 +1,9 @@
 import proj4 from "proj4";
 import type { Extent, XY } from "./types.js";
 import { fail, GeoreferenceError } from "./types.js";
+
+/** Validated converters keyed by resolved source and destination definitions. */
+const converters = new Map<string, (p: XY) => XY>();
 /**
  * Host-supplied projection definitions keyed by normalized CRS identifier, with PROJ
  * strings or WKT as values.
@@ -13,9 +16,11 @@ export type Definitions = Record<string, string>;
 export type DatumGrids = Record<string, ArrayBuffer>;
 /**
  * Validate and register host-provided NTv2 buffers in the current JavaScript realm. Worker realms receive their own copies through engine options.
+ * Also discards cached converters, so later conversions use the current grids and definitions.
  * @throws {@link GeoreferenceError} If grid headers or registration are invalid.
  */
 export function registerDatumGrids(grids: DatumGrids = {}): void {
+  converters.clear();
   for (const [name, data] of Object.entries(grids)) {
     if (!name || !(data instanceof ArrayBuffer) || data.byteLength < 352)
       fail("GRID", `Invalid NTv2 datum grid: ${name}`);
@@ -89,6 +94,54 @@ export function coordinateUnits(
     return "unavailable CRS units";
   }
 }
+const inlineDefinition = (value: string) =>
+  /^(?:PROJCRS|GEOGCRS|GEODCRS|BOUNDCRS|COMPOUNDCRS|GEOGCS|PROJCS)\[|^\+proj=/.test(
+    value,
+  );
+/**
+ * Create a validated, reusable coordinate converter between explicit CRSs. Definitions and
+ * mandatory datum grids are checked once; the returned function only transforms.
+ * Converters are cached by resolved definition, so repeated calls are cheap.
+ * @param from - Source CRS identifier or inline definition.
+ * @param to - Destination CRS identifier or inline definition.
+ * @param definitions - Additional host projection definitions.
+ * @returns Converter; its output may be nonfinite outside the projection domain.
+ * @throws {@link GeoreferenceError} For missing definitions or required datum grids.
+ */
+export function createConverter(
+  from: string,
+  to: string,
+  definitions: Definitions = {},
+): (p: XY) => XY {
+  from = normalizeCrs(from);
+  to = normalizeCrs(to);
+  const src = definitions[from] ?? from,
+    dst = definitions[to] ?? to,
+    key = `${src}\u0000${dst}`;
+  const cached = converters.get(key);
+  if (cached) return cached;
+  try {
+    if (!proj4.defs(from) && !definitions[from] && !inlineDefinition(from))
+      fail("CRS", `Missing projection definition: ${from}`);
+    if (!proj4.defs(to) && !definitions[to] && !inlineDefinition(to))
+      fail("CRS", `Missing projection definition: ${to}`);
+    let convert: (p: XY) => XY;
+    if (from === to) convert = (p) => [p[0], p[1]];
+    else {
+      requireGrids(src);
+      requireGrids(dst);
+      const c = proj4(src, dst);
+      convert = (p) => c.forward([p[0], p[1]]) as XY;
+    }
+    // Bounded: hosts use a handful of CRS pairs.
+    if (converters.size >= 64) converters.clear();
+    converters.set(key, convert);
+    return convert;
+  } catch (e) {
+    if (e instanceof GeoreferenceError) throw e;
+    return fail("CRS", `Cannot convert ${from} to ${to}: ${String(e)}`);
+  }
+}
 /**
  * Convert an `[x, y]` coordinate between explicit CRSs using proj4. Geographic tuples always use longitude then latitude.
  * @param p - Finite input coordinate in `from`.
@@ -103,31 +156,19 @@ export function project(
   to: string,
   definitions: Definitions = {},
 ): XY {
-  from = normalizeCrs(from);
-  to = normalizeCrs(to);
-  const src = definitions[from] ?? from,
-    dst = definitions[to] ?? to;
+  const convert = createConverter(from, to, definitions);
+  let result: XY;
   try {
-    const inline = (value: string) =>
-      /^(?:PROJCRS|GEOGCRS|GEODCRS|BOUNDCRS|COMPOUNDCRS|GEOGCS|PROJCS)\[|^\+proj=/.test(
-        value,
-      );
-    if (!proj4.defs(from) && !definitions[from] && !inline(from))
-      fail("CRS", `Missing projection definition: ${from}`);
-    if (!proj4.defs(to) && !definitions[to] && !inline(to))
-      fail("CRS", `Missing projection definition: ${to}`);
-    if (from !== to) {
-      requireGrids(src);
-      requireGrids(dst);
-    }
-    const result = (from === to ? [...p] : proj4(src, dst, p)) as XY;
-    if (!result.every(Number.isFinite))
-      fail("CRS", "Projection produced nonfinite coordinates.");
-    return result;
+    result = convert(p);
   } catch (e) {
-    if (e instanceof GeoreferenceError) throw e;
-    return fail("CRS", `Cannot convert ${from} to ${to}: ${String(e)}`);
+    return fail(
+      "CRS",
+      `Cannot convert ${normalizeCrs(from)} to ${normalizeCrs(to)}: ${String(e)}`,
+    );
   }
+  if (!result.every(Number.isFinite))
+    fail("CRS", "Projection produced nonfinite coordinates.");
+  return result;
 }
 /**
  * Transform bounds by sampling all four edges at 65 positions each.

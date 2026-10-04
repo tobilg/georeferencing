@@ -1,5 +1,4 @@
 import type { Features, GeoreferencerController } from "@georeferencing/core";
-import { validateFeatures } from "@georeferencing/core";
 import type { ReactNode } from "react";
 import { useGeoreferencer } from "../hooks/useGeoreferencer.js";
 import type { Translate } from "../localization.js";
@@ -51,7 +50,7 @@ export function FeaturePanel({
       <h2>
         {t("Drawings")} <small>{d.features.features.length}</small>
       </h2>
-      {validateFeatures(d.features).map((error) => (
+      {controller.getFeatureErrors().map((error) => (
         <p className="rg-error" key={error}>
           {t(error)}
         </p>

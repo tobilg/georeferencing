@@ -1,6 +1,7 @@
 import type { Engine, JobTag, Raster } from "../engine/index.js";
 import type { Fit } from "./transform.js";
 import type { Document } from "./types.js";
+import { fail } from "./types.js";
 
 /** One downloadable artifact, including an optional georeferencing sidecar. */
 export interface ExportFile {
@@ -98,4 +99,30 @@ export function abortable<T>(
       .then(resolve, reject)
       .finally(() => signal.removeEventListener("abort", cancel));
   });
+}
+/**
+ * Copy and validate descriptors without loading plugin implementations.
+ * @throws {@link GeoreferenceError} For missing or duplicate IDs, labels or loaders.
+ * @internal
+ */
+export function validateExportFormats(
+  formats: readonly ExportFormat[],
+): readonly ExportFormat[] {
+  const ids = new Set<string>();
+  return Object.freeze(
+    formats.map((format) => {
+      if (
+        !format.id ||
+        ids.has(format.id) ||
+        !format.label ||
+        typeof format.load !== "function"
+      )
+        fail(
+          "EXPORT_CONFIG",
+          "Export formats require unique IDs, labels and lazy loaders.",
+        );
+      ids.add(format.id);
+      return Object.freeze({ ...format });
+    }),
+  );
 }

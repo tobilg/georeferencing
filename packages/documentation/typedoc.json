@@ -20,7 +20,7 @@
   "entryPointStrategy": "resolve",
   "router": "structure-dir",
   "out": "dist",
-  "readme": "./README.md",
+  "readme": "./landing.md",
   "projectDocuments": ["./guides/*.md"],
   "excludePrivate": true,
   "excludeProtected": true,
@@ -53,5 +53,18 @@
   "disableGit": true,
   "basePath": ".",
   "displayBasePath": "../..",
-  "categorizeByGroup": true
+  "categorizeByGroup": true,
+  "customJs": "./theme/navigation.js",
+  "groupOrder": [
+    "Guides",
+    "@georeferencing/core",
+    "@georeferencing/plugins",
+    "@georeferencing/react",
+    "*"
+  ],
+  "navigation": {
+    "includeFolders": true,
+    "includeGroups": true,
+    "includeCategories": false
+  }
 }

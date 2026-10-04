@@ -1,4 +1,5 @@
 import type { Definitions, Exporter } from "@georeferencing/core";
+import type { WorldFileOptions } from "./serializers.js";
 import { accuracyReport, exportPoints, worldFile } from "./serializers.js";
 
 const textFile = (name: string, text: string, type = "application/json") => ({
@@ -37,11 +38,16 @@ export const accuracyExporter: Exporter = {
   },
 };
 /** @internal */
-export const worldFileExporter: Exporter = {
+export const worldFileExporter = (options: WorldFileOptions): Exporter => ({
   async run({ document, fit, file, engine, tag, signal, onProgress }) {
     if (!fit || !file || !document.sourceImage)
       throw Error("A matching image and fit are required.");
-    const placement = worldFile(fit, document.workingCrs, document.output.crs);
+    const placement = worldFile(
+      fit,
+      document.workingCrs,
+      document.output.crs,
+      options,
+    );
     const result = await engine.run(
       { kind: "normalize", file, metadata: document.sourceImage },
       tag,
@@ -73,4 +79,4 @@ export const worldFileExporter: Exporter = {
       ],
     };
   },
-};
+});

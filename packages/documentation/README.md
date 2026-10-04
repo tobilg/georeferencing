@@ -4,8 +4,9 @@ Documentation for the browser georeferencing workspace: headless sessions and
 processing in `@georeferencing/core`, optional local exports in
 `@georeferencing/plugins`, and a React 19 editor in `@georeferencing/react`.
 
-This README is both the documentation website's landing page and the operating
-guide for the private **`@georeferencing/documentation`** workspace. The site is
+This README is the operating guide for the private
+**`@georeferencing/documentation`** workspace; the website's landing page is
+[`landing.md`](./landing.md), which documents only the public packages. The site is
 generated directly from the three public packages' TypeScript comments, alongside
 handwritten guides and typechecked code examples. The same API comments ship in
 published `.d.ts` files for editor help. This workspace is not published to npm.
@@ -107,7 +108,9 @@ provides static navigation, search and light/dark presentation.
 
 | File / directory | Role |
 | --- | --- |
-| `README.md` | Website landing page and workspace operating guide |
+| `README.md` | Workspace operating guide (this file) |
+| `landing.md` | Website landing page: public packages, guides and entry points |
+| `theme/navigation.js` | Lets long import paths in the sidebar wrap after `/` |
 | `typedoc.json` | Public entry points, guides, strict documentation validation, source links and output routing |
 | `tsconfig.api.json` | API-source compilation, mapping cross-package core imports to source |
 | `tsconfig.json` | Strict checks for standalone guide examples against package exports |
@@ -123,7 +126,8 @@ TIFF encoder, pure serializers and PDF report APIs. Private/protected/internal/e
 excluded. Source links point at the repository's `main` branch. The published site is
 deployed from each release tag.
 
-TypeDoc currently uses the built-in HTML theme and `structure-dir` routing.
+TypeDoc currently uses the built-in HTML theme and `structure-dir` routing, so API
+pages live under their import path, such as `_georeferencing/core/engine/`.
 Do not edit generated HTML. Edit source comments, this README or the guides, then
 regenerate. The documentation build fails for undocumented required public symbols
 and warnings such as invalid API links. Website tooling remains a development
@@ -135,12 +139,17 @@ dependency of this private workspace, outside consumer runtime dependencies.
    units, ownership, revision/cancellation guarantees and meaningful parameter or
    error conditions. Avoid comments that merely restate a symbol's name.
 2. For a new public API entry, export it from its package and add the appropriate
-   source entry to `typedoc.json`. Keep `tsconfig.api.json` source mappings coherent
-   when cross-package imports change.
+   source entry to `typedoc.json`. Name the entry's module after its import path and
+   group it by package, for example `@module @georeferencing/core/engine` and
+   `@group @georeferencing/core`; the navigation is built from these tags. Link
+   across entry points with quoted module names, such as
+   `{@link "@georeferencing/core".GeoreferenceError}`. Keep `tsconfig.api.json`
+   source mappings coherent when cross-package imports change.
 3. Put runnable guide examples in `examples/`, importing public package entry points.
    Embed them in guides with TypeDoc's `includeCode` directive instead of
    maintaining an untested duplicate. Paths are relative to the guide file.
-4. Give each guide a title in its frontmatter and link it from this landing page.
+4. Give each guide a `title` and `group: Guides` in its frontmatter and link it from
+   `landing.md`.
    Use relative Markdown links for included guides and repository links for source
    files that are not emitted as site pages.
 5. Run typechecking, documentation validation and the generated-site check before

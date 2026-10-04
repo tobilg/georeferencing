@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -31,15 +31,14 @@
     },
     "./styles.css": "./dist/styles.css"
   },
-  "dependencies": {
-    "@georeferencing/core": "workspace:^"
-  },
   "peerDependencies": {
+    "@georeferencing/core": "workspace:^",
     "react": ">=19.3.0 <20",
     "react-dom": ">=19.3.0 <20",
     "ol": ">=10.10.0 <11"
   },
   "devDependencies": {
+    "@georeferencing/core": "workspace:*",
     "typescript": "5.9.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",

@@ -1,10 +1,17 @@
 /**
  * Pure serializers for QGIS points, world files and alignment accuracy reports.
  * Import from `@georeferencing/plugins/serializers`; no workers or UI are loaded.
- * @module serializers
+ * @module @georeferencing/plugins/serializers
+ * @group @georeferencing/plugins
  */
 import type { Definitions, Document, Fit } from "@georeferencing/core";
-import { ENGINE_VERSION, fail, forward, project } from "@georeferencing/core";
+import {
+  ENGINE_VERSION,
+  fail,
+  forward,
+  normalizeCrs,
+  project,
+} from "@georeferencing/core";
 
 /**
  * Export a QGIS-compatible `.points` text file. Targets are projected into the document working CRS; canonical image y is negated to QGIS source y-up coordinates.
@@ -33,16 +40,34 @@ export function exportPoints(
     "\n"
   );
 }
+/** Options for world-file placement. */
+export interface WorldFileOptions {
+  /**
+   * Also accept Polynomial 1 (affine) fits. A world file represents any affine transform
+   * exactly, including rotation and shear; QGIS offers world files only for Linear and
+   * Helmert, so this is opt-in.
+   * @defaultValue `false`
+   */
+  affine?: boolean;
+}
+/** Models a world file can represent with the given options. @internal */
+export function worldFileModels(options: WorldFileOptions = {}): string[] {
+  return options.affine
+    ? ["linear", "helmert", "polynomial1"]
+    : ["linear", "helmert"];
+}
 /**
- * Create a six-line world file plus an explicit CRS sidecar value for Linear or Helmert fits without reprojection.
+ * Create a six-line world file plus an explicit CRS sidecar value for Linear or Helmert fits (and optionally affine fits) without reprojection.
  *
  * Line order is A, D, B, E, C, F. The final two values locate the first pixel centre, `[0.5, 0.5]`. A world file alone contains no CRS.
- * @throws {@link core.GeoreferenceError} For ineligible models or different working/output CRSs.
+ * @param options - Set `affine` to also accept Polynomial 1 fits.
+ * @throws {@link "@georeferencing/core".GeoreferenceError} For ineligible models or different working/output CRSs.
  */
 export function worldFile(
   fit: Fit,
   workingCrs: string,
   outputCrs: string,
+  options: WorldFileOptions = {},
 ): {
   /**
    * Six newline-separated values in A, D, B, E, C, F order, including the pixel-centre
@@ -52,10 +77,15 @@ export function worldFile(
   /** Explicit CRS to retain beside the world file. */
   crs: string;
 } {
-  if (!["linear", "helmert"].includes(fit.model) || workingCrs !== outputCrs)
+  if (
+    !worldFileModels(options).includes(fit.model) ||
+    normalizeCrs(workingCrs) !== normalizeCrs(outputCrs)
+  )
     fail(
       "WORLD_FILE",
-      "World-file-only output requires Linear/Helmert without reprojection.",
+      options.affine
+        ? "World-file-only output requires a Linear, Helmert or affine fit without reprojection."
+        : "World-file-only output requires Linear/Helmert without reprojection.",
     );
   const a = forward(fit, [0, 0]),
     b = forward(fit, [1, 0]),

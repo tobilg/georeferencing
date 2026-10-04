@@ -30,9 +30,10 @@ SSR-safe; start image processing on the client.
 
 `@georeferencing/core`, `@georeferencing/plugins` and `@georeferencing/react` are
 released together. **Install the same version of every `@georeferencing/*` package**
-and upgrade them together. Plugins and React depend on core; mismatched versions
-can install a second copy of core with its own proj4 projection registry, so
-projections registered through one copy are invisible to the other. See
+and upgrade them together. Plugins and React declare core as a peer dependency, so
+they use your application's copy; mismatched versions are reported as peer-dependency
+conflicts instead of installing a second core whose proj4 projection registry would be
+invisible to the first. See
 [keep package versions aligned](https://georeferencing-api-docs.gh.tobilg.com/Getting_started/#keep-package-versions-aligned).
 
 API reference and guides: **[georeferencing-api-docs.gh.tobilg.com](https://georeferencing-api-docs.gh.tobilg.com)**.
@@ -134,14 +135,16 @@ fits, use `validateDomain`; point count alone does not establish a valid transfo
 | Operation | Behavior |
 | --- | --- |
 | `loadImage(file)` | Inspect a selected image, guard dirty replacement, retain original bytes and create a reduced preview |
-| `setPendingPoint`, `addGcp`, `updateGcp`, `removeGcp`, `replaceGcps` | Create/edit paired points; invalidate confirmation and follow the preview policy |
+| `setPendingPoint`, `addGcp`, `updateGcp`, `removeGcp`, `replaceGcps` | Create/edit paired points; invalidate confirmation and follow the preview policy. Nonfinite coordinates, empty CRSs, duplicate IDs and lists beyond the engine's `limits.maxGcps` are rejected before committing |
 | `setModel`, `setWorkingCrs`, `setOutput` | Change transformation or output settings through revisioned edits |
 | `undo`, `redo` | Restore edits while keeping revisions monotonic |
 | `setPreviewMode(mode)` | Switch manual/automatic preview without changing document revisions |
 | `refit()` | Fit and render the latest preview; failures update snapshot state |
-| `confirm()` | Accept the exact current valid image/alignment revision for digitizing |
+| `confirm()` | Accept the exact current valid image/alignment revision for digitizing. Confirmation and review are not undo steps |
 | `returnToAlignment()`, `reviewFeatures()` | Re-align without moving geographic drawings, then explicitly review them |
 | `setFeatures`, `deleteFeature` | Update separate geographic feature drafts with stable IDs |
+| `getFeatureErrors()` | Accepted-geometry errors, computed once per feature revision and cheap to call while rendering |
+| `requestDetailImage()` | Load a full-resolution display image (`snapshot.detailImageUrl`) for precise point placement once the view is zoomed beyond the preview |
 | `save()`, `save("draft")` | Submit an immutable snapshot to the matching host callback |
 | `removeImage()`, `restoreSession(json, file)` | Guard destructive transitions and cancel obsolete processing |
 | `suspend()`, `start()` | Pause/resume retained image and document resources across UI attachment cycles |
@@ -280,7 +283,8 @@ confirmation/review but never moves existing geographic drawings.
   remain the host's responsibility.
 
 Resolve save callbacks only after storage accepts the snapshot; reject on failure.
-Retries of the same revision/save kind reuse the request ID. An older save cannot
+Retries of the same revision/save kind reuse the request ID. A save of another kind
+or a newer revision waits for a pending save and then submits its own snapshot. An older save cannot
 mark newer edits saved. Draft acknowledgements and accepted-feature
 acknowledgements are separate. Neither feature saving nor draft saving requires a
 raster export. See the
@@ -336,7 +340,9 @@ export const engine = createWorkerEngine({
 ```
 
 Use projection definitions appropriate to your own data. EPSG:4326 and EPSG:3857
-are built in; other identifiers do not automatically download definitions. Pass
+are built in; other identifiers do not automatically download definitions. The
+engine exposes its effective `limits`; the controller uses `limits.maxGcps` to reject
+control-point edits before fitting. Pass
 identical definitions and any licensed NTv2 `datumGrids` to the engine and map
 binding. Share one scheduler across engines when bounding total concurrent workers.
 
@@ -352,7 +358,10 @@ binding. Share one scheduler across engines when bounding total concurrent worke
 Compressed bytes do not bound decoded memory. Header inspection checks dimensions
 before decoding, and output allocation is budgeted. These are allocation estimates,
 not browser process RSS guarantees. Original bytes are retained for final export;
-large rasters still require full source/output buffers.
+large rasters still require full source/output buffers. The full-resolution detail
+image is displayed directly from unrotated PNG/JPEG/WebP files; other inputs are
+normalized by the engine within these budgets, and a failure is reported once without
+blocking editing.
 
 Supported inputs are ordinary 8-bit nonanimated PNG, grayscale/RGB JPEG, static WebP, and
 single-page orientation-1 chunky unsigned 8-bit grayscale/RGB/unassociated-RGBA

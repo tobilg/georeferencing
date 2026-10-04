@@ -1,13 +1,14 @@
+import { isValidGcp } from "./gcps.js";
 import { assertJson, validateFeatures } from "./geometry.js";
 import type { Document, Gcp } from "./types.js";
-import { fail, MODELS, uid } from "./types.js";
+import { fail, MAX_GCPS, MODELS, uid } from "./types.js";
 
 /**
  * Parse comma- or tab-delimited QGIS `.points` text, including sourceX/sourceY and legacy pixelX/pixelY headers.
  * @param text - File text; optional BOM and `#CRS:` header are supported.
  * @param fallbackCrs - Required if the file has no CRS header. Does not override an existing header.
  * @returns Newly identified GCPs in canonical y-down image pixels and the file's target CRS.
- * @throws {@link core.GeoreferenceError} For missing CRS, invalid columns or nonfinite/invalid rows.
+ * @throws {@link "@georeferencing/core".GeoreferenceError} For missing CRS, invalid columns or nonfinite/invalid rows.
  */
 export function importPoints(
   text: string,
@@ -90,7 +91,7 @@ export function importPoints(
  *
  * Unknown schema versions, invalid identities, stale confirmation, inconsistent provenance and structurally invalid drafts are rejected. Use the controller's `restoreSession` to verify the matching original image.
  * @throws SyntaxError For malformed JSON.
- * @throws {@link core.GeoreferenceError} For invalid session data.
+ * @throws {@link "@georeferencing/core".GeoreferenceError} For invalid session data.
  */
 export function parseSession(text: string): Document {
   const d = JSON.parse(text) as Document;
@@ -126,7 +127,13 @@ export function parseSession(text: string): Document {
         d.output.rowsPerStrip < 1 ||
         d.output.rowsPerStrip > 4096)) ||
     ![1, 2].includes(d.output.predictor ?? 1) ||
-    (d.output.predictor === 2 && d.output.compression !== "deflate")
+    (d.output.predictor === 2 && d.output.compression !== "deflate") ||
+    (d.output.approximationError !== undefined &&
+      !(
+        Number.isFinite(d.output.approximationError) &&
+        d.output.approximationError >= 0 &&
+        d.output.approximationError <= 1
+      ))
   )
     fail("SCHEMA", "Invalid raster creation or no-data settings.");
   for (const revision of [
@@ -143,23 +150,9 @@ export function parseSession(text: string): Document {
     if (revision !== null && revision !== d.alignmentRevision)
       fail("SCHEMA", "Stale confirmation/review in session.");
   if (
+    d.gcps.length > MAX_GCPS ||
     new Set(d.gcps.map((p) => p?.id)).size !== d.gcps.length ||
-    d.gcps.some(
-      (p) =>
-        !p ||
-        typeof p.id !== "string" ||
-        !p.id ||
-        typeof p.enabled !== "boolean" ||
-        !Number.isSafeInteger(p.label) ||
-        p.label < 1 ||
-        !Array.isArray(p.image) ||
-        p.image.length !== 2 ||
-        !Array.isArray(p.target) ||
-        p.target.length !== 2 ||
-        ![...p.image, ...p.target].every(Number.isFinite) ||
-        typeof p.crs !== "string" ||
-        !p.crs.trim(),
-    )
+    !d.gcps.every(isValidGcp)
   )
     fail("SCHEMA", "Invalid session control points.");
   if (

@@ -1,10 +1,10 @@
-import type { Features, XY } from "./types.js";
+import type { Extent, Features, XY } from "./types.js";
 import { fail } from "./types.js";
 /**
  * Validate finite, acyclic JSON data, rejecting functions, undefined values and class instances.
  * @param value - Value to validate without mutation.
  * @param seen - Ancestor set used during recursion; callers normally omit this.
- * @throws {@link core.GeoreferenceError} If the value cannot be safely persisted as JSON.
+ * @throws {@link "@georeferencing/core".GeoreferenceError} If the value cannot be safely persisted as JSON.
  */
 export function assertJson(value: unknown, seen = new Set<unknown>()): void {
   if (value === null || typeof value === "string" || typeof value === "boolean")
@@ -201,4 +201,28 @@ export function validateFeatures(
     }
   }
   return [...new Set(errors)];
+}
+/**
+ * Whether any vertex of a structurally valid collection lies outside a
+ * longitude/latitude extent. Boundary vertices are inside.
+ * @param features - Collection validated in at least `draft` mode.
+ * @param bounds - `[minLon, minLat, maxLon, maxLat]`.
+ */
+export function outsideBounds(features: Features, bounds: Extent): boolean {
+  return features.features.some((f) => {
+    const g = f.geometry;
+    const coordinates =
+      g.type === "Point"
+        ? [g.coordinates]
+        : g.type === "LineString"
+          ? g.coordinates
+          : g.coordinates.flat();
+    return coordinates.some(
+      (p) =>
+        p[0] < bounds[0] ||
+        p[0] > bounds[2] ||
+        p[1] < bounds[1] ||
+        p[1] > bounds[3],
+    );
+  });
 }

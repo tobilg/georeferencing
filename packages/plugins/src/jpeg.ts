@@ -1,6 +1,7 @@
 /**
  * Optional georeferenced JPEG export; import from `@georeferencing/plugins/jpeg`.
- * @module jpeg
+ * @module @georeferencing/plugins/jpeg
+ * @group @georeferencing/plugins
  */
 import type { ExportFormat } from "@georeferencing/core";
 import { GeoreferenceError } from "@georeferencing/core";

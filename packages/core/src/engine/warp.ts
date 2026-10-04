@@ -1,6 +1,5 @@
-import proj4 from "proj4";
 import type { Definitions } from "../core/projection.js";
-import { project } from "../core/projection.js";
+import { createConverter, normalizeCrs } from "../core/projection.js";
 import type { Fit } from "../core/transform.js";
 import { backward, forward, validateDomain } from "../core/transform.js";
 import type {
@@ -212,7 +211,7 @@ function filterScale(
  * @param limits - Pixel and estimated-memory budgets.
  * @param definitions - Additional projection definitions.
  * @param preview - Reduce dimensions to the configured preview limit when true.
- * @throws {@link core.GeoreferenceError} For invalid domains, projections, grids, encoding settings or budgets.
+ * @throws {@link "@georeferencing/core".GeoreferenceError} For invalid domains, projections, grids, encoding settings or budgets.
  */
 export function outputGrid(
   fit: Fit,
@@ -229,9 +228,23 @@ export function outputGrid(
     )
   )
     fail("OUTPUT", "Unsupported resampler or TIFF compression.");
+  if (
+    options.approximationError !== undefined &&
+    !(
+      Number.isFinite(options.approximationError) &&
+      options.approximationError >= 0 &&
+      options.approximationError <= 1
+    )
+  )
+    fail("OUTPUT", "Approximation error must be from 0 to 1 source pixels.");
   validateDomain(fit, metadata.width, metadata.height);
-  const convert = (p: XY) =>
-    project(forward(fit, p), workingCrs, options.crs, definitions);
+  const toOutput = createConverter(workingCrs, options.crs, definitions);
+  const convert = (p: XY) => {
+    const q = toOutput(forward(fit, p));
+    if (!q.every(Number.isFinite))
+      fail("CRS", "Projection produced nonfinite coordinates.");
+    return q;
+  };
   const center: XY = [metadata.width / 2, metadata.height / 2],
     c = convert(center),
     cx = convert([center[0] + 1, center[1]]),
@@ -336,7 +349,17 @@ export function outputGrid(
   return { width, height, bounds, crs: options.crs, estimatedBytes };
 }
 /**
+ * Default maximum error, in source pixels, of the approximate transformer used for
+ * expensive final-output inverse mappings. Small enough to keep pinned QGIS/GDAL raster
+ * parity; set `OutputSettings.approximationError` to trade accuracy for speed.
+ */
+export const DEFAULT_APPROXIMATION_ERROR = 0.0001;
+/** Approximation tolerance for reduced previews, in preview pixels; the GDAL warper default. */
+export const PREVIEW_APPROXIMATION_ERROR = 0.125;
+/**
  * Synchronously backward-map output pixel centres through the fit and resample the source. Use the worker engine for interactive applications.
+ *
+ * When the inverse is expensive (thin plate spline or a reprojected output CRS), source positions are computed exactly at a few positions per row and linearly interpolated in between wherever the interpolation error at the segment midpoint stays within `maxError` source pixels, as the GDAL approximate transformer does. Other models are always mapped exactly.
  * @param input - Orientation-normalized RGBA; may be a reduced-resolution preview.
  * @param metadata - Original canonical dimensions, used to scale coordinates into the decoded buffer.
  * @param fit - Same fit used for preview and final export.
@@ -345,6 +368,7 @@ export function outputGrid(
  * @param method - Interpolation kernel.
  * @param definitions - Host projection definitions.
  * @param progress - Synchronous progress fractions, reported every 32 rows and at completion.
+ * @param maxError - Approximation tolerance in decoded source pixels; 0 maps every pixel exactly.
  * @returns Newly allocated raster; the input is not mutated.
  */
 export function warp(
@@ -356,45 +380,73 @@ export function warp(
   method: Resampler,
   definitions: Definitions = {},
   progress?: (v: number) => void,
+  maxError = DEFAULT_APPROXIMATION_ERROR,
 ): Raster {
   const data = new Uint8ClampedArray(grid.width * grid.height * 4);
   const dx = (grid.bounds[2] - grid.bounds[0]) / grid.width,
     dy = (grid.bounds[3] - grid.bounds[1]) / grid.height;
-  const conversion =
-    workingCrs === grid.crs
-      ? null
-      : proj4(
-          definitions[grid.crs] ?? grid.crs,
-          definitions[workingCrs] ?? workingCrs,
-        );
+  const reprojected = normalizeCrs(workingCrs) !== normalizeCrs(grid.crs),
+    toWorking = createConverter(grid.crs, workingCrs, definitions);
+  const sx = input.width / metadata.width,
+    sy = input.height / metadata.height;
   const toSource = (pixel: XY): XY | null => {
     const q: XY = [
       grid.bounds[0] + pixel[0] * dx,
       grid.bounds[3] - pixel[1] * dy,
     ];
-    const p = backward(fit, conversion ? (conversion.forward(q) as XY) : q);
-    return p
-      ? [
-          (p[0] * input.width) / metadata.width,
-          (p[1] * input.height) / metadata.height,
-        ]
-      : null;
+    const p = backward(fit, reprojected ? toWorking(q) : q);
+    return p ? [p[0] * sx, p[1] * sy] : null;
   };
   const scale = filterScale(input, grid, toSource);
-  for (let y = 0; y < grid.height; y++) {
-    for (let x = 0; x < grid.width; x++) {
-      const p = toSource([x + 0.5, y + 0.5]);
-      if (p)
+  const width = grid.width,
+    rowX = new Float64Array(width),
+    rowY = new Float64Array(width);
+  const approximate =
+    maxError > 0 && (fit.model === "thinPlateSpline" || reprojected);
+  let y = 0;
+  const exact = (i: number) => {
+    const p = toSource([i + 0.5, y + 0.5]);
+    rowX[i] = p ? p[0] : Number.NaN;
+    rowY[i] = p ? p[1] : Number.NaN;
+  };
+  // Recursive midpoint refinement between exactly mapped columns a and b.
+  const refine = (a: number, b: number) => {
+    if (b - a < 2) return;
+    const m = (a + b) >> 1;
+    exact(m);
+    const t = (m - a) / (b - a),
+      ex = rowX[a] + (rowX[b] - rowX[a]) * t - rowX[m],
+      ey = rowY[a] + (rowY[b] - rowY[a]) * t - rowY[m];
+    if (Math.hypot(ex, ey) <= maxError) {
+      // NaN errors (an invalid endpoint) never pass, so both ends are valid here.
+      for (let i = a + 1; i < b; i++) {
+        if (i === m) continue;
+        const u = (i - a) / (b - a);
+        rowX[i] = rowX[a] + (rowX[b] - rowX[a]) * u;
+        rowY[i] = rowY[a] + (rowY[b] - rowY[a]) * u;
+      }
+      return;
+    }
+    refine(a, m);
+    refine(m, b);
+  };
+  for (; y < grid.height; y++) {
+    if (approximate) {
+      exact(0);
+      exact(width - 1);
+      refine(0, width - 1);
+    } else for (let x = 0; x < width; x++) exact(x);
+    for (let x = 0; x < width; x++)
+      if (!Number.isNaN(rowX[x]))
         sample(
           input,
-          p[0],
-          p[1],
+          rowX[x],
+          rowY[x],
           method,
           data,
-          (y * grid.width + x) * 4,
+          (y * width + x) * 4,
           scale,
         );
-    }
     if (y % 32 === 0) progress?.(y / grid.height);
   }
   progress?.(1);

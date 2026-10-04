@@ -1,4 +1,5 @@
 ---
+group: Guides
 title: Capabilities and limits
 ---
 
@@ -57,7 +58,8 @@ origin and downward Y; the first pixel centre is `(0.5, 0.5)`.
   use 1e-9-pixel precision to stabilize floating-point ties. Files need not be
   byte-identical to GDAL output to have equivalent coordinates and pixels.
 - JPEG exports require their world-file/CRS sidecars for placement. Original-pixel
-  world-file-only output is limited to Linear/Helmert without reprojection.
+  world-file-only output is limited to Linear/Helmert without reprojection, or
+  additionally affine fits with `worldFile({ affine: true })`.
 - GeoTIFF output EPSG codes must be below 32767; arbitrary-WKT tagging is not
   supported. Custom working CRSs can be reprojected to a supported output CRS.
 - PDF reports support aligned rasters and optional loaded canvas map layers with

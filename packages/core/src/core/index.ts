@@ -1,7 +1,8 @@
 /**
  * Serializable documents, editor state, coordinate transforms and interchange.
  * Import from `@georeferencing/core` (or its `/core` alias) for headless integrations.
- * @module core
+ * @module @georeferencing/core
+ * @group @georeferencing/core
  */
 export * from "./controller.js";
 export * from "./coordinates.js";

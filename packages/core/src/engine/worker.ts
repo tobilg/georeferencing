@@ -15,7 +15,12 @@ import { fail } from "../core/types.js";
 import { checkBudget } from "./budget.js";
 import { decodeImage, inspectImage, maskSourceNoData } from "./image.js";
 import type { EngineRequest, EngineResult, JobTag } from "./index.js";
-import { outputGrid, warp } from "./warp.js";
+import {
+  DEFAULT_APPROXIMATION_ERROR,
+  outputGrid,
+  PREVIEW_APPROXIMATION_ERROR,
+  warp,
+} from "./warp.js";
 
 const workerScope = globalThis as unknown as {
   onmessage: (e: MessageEvent) => void;
@@ -141,6 +146,9 @@ workerScope.onmessage = async ({
         r.output.resampler,
         definitions,
         (progress) => send({ progress: progress * 0.8 }),
+        r.preview
+          ? PREVIEW_APPROXIMATION_ERROR
+          : (r.output.approximationError ?? DEFAULT_APPROXIMATION_ERROR),
       );
       if (r.preview && r.output.noData !== undefined)
         maskSourceNoData(raster, r.output.noData);
@@ -152,9 +160,13 @@ workerScope.onmessage = async ({
       result.raster ? [result.raster.data.buffer as ArrayBuffer] : [],
     );
   } catch (error) {
-    const e = error as Error & { code?: string };
+    const e = error as Error & { code?: string; recoverable?: boolean };
     send({
-      error: { code: e.code ?? "ENGINE", message: e.message ?? String(error) },
+      error: {
+        code: e.code ?? "ENGINE",
+        message: e.message ?? String(error),
+        recoverable: e.recoverable !== false,
+      },
     });
   }
 };

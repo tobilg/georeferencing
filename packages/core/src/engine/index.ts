@@ -1,7 +1,8 @@
 /**
  * Lazy browser worker processing, concurrency budgets and raw raster rendering.
  * Import from `@georeferencing/core/engine`.
- * @module engine
+ * @module @georeferencing/core/engine
+ * @group @georeferencing/core
  */
 import type { DatumGrids, Definitions } from "../core/projection.js";
 import type { Fit } from "../core/transform.js";
@@ -16,7 +17,13 @@ import { DEFAULT_LIMITS, GeoreferenceError, uid } from "../core/types.js";
 import type { Raster } from "./warp.js";
 
 export type { Pixels } from "./image.js";
-export { outputGrid, sample, warp } from "./warp.js";
+export {
+  DEFAULT_APPROXIMATION_ERROR,
+  outputGrid,
+  PREVIEW_APPROXIMATION_ERROR,
+  sample,
+  warp,
+} from "./warp.js";
 export type { Fit, Raster };
 /**
  * Declared capabilities of the bundled JavaScript engine. See the capabilities guide for
@@ -196,6 +203,11 @@ export interface Engine {
    * subsequent runs.
    */
   dispose(): void;
+  /**
+   * Effective workload limits, when known. Controllers use `maxGcps` to reject edits
+   * beyond the engine budget before fitting; custom engines may omit this.
+   */
+  readonly limits?: Readonly<Limits>;
 }
 /** Cancellation/progress and optional per-operation plugin worker selection. */
 export interface EngineRunOptions {
@@ -253,7 +265,7 @@ export interface JobScheduler {
 /**
  * Create a bounded FIFO worker queue that removes cancelled work before allocation.
  * @param maxConcurrent - Positive integer capacity; defaults to 1.
- * @throws {@link core.GeoreferenceError} If capacity is not a positive integer.
+ * @throws {@link "@georeferencing/core".GeoreferenceError} If capacity is not a positive integer.
  */
 export function createJobScheduler(maxConcurrent = 1): JobScheduler {
   if (!Number.isInteger(maxConcurrent) || maxConcurrent < 1)
@@ -315,8 +327,13 @@ export function createJobScheduler(maxConcurrent = 1): JobScheduler {
  * @returns Host-owned engine; call dispose when its consumers are finished.
  */
 export function createWorkerEngine(options: EngineOptions = {}): Engine {
-  const jobs = new Set<() => void>();
+  const jobs = new Set<() => void>(),
+    limits: Readonly<Limits> = Object.freeze({
+      ...DEFAULT_LIMITS,
+      ...options.limits,
+    });
   return {
+    limits,
     async run(request, tag, originalOptions = {}) {
       const abort = new AbortController(),
         cancelJob = () => abort.abort();
@@ -365,12 +382,26 @@ export function createWorkerEngine(options: EngineOptions = {}): Engine {
             }
           };
           runOptions.signal?.addEventListener("abort", cancel, { once: true });
+          // Worker load/startup failures are deployment problems that a retry cannot fix.
           worker.onerror = (e) => {
             cleanup();
             reject(
               new GeoreferenceError(
                 "WORKER",
                 e.message || "Worker failed; check worker URL and CSP.",
+                false,
+                operationId,
+              ),
+            );
+          };
+          worker.onmessageerror = () => {
+            cleanup();
+            reject(
+              new GeoreferenceError(
+                "WORKER",
+                "A worker message could not be deserialized.",
+                false,
+                operationId,
               ),
             );
           };
@@ -393,7 +424,7 @@ export function createWorkerEngine(options: EngineOptions = {}): Engine {
                 new GeoreferenceError(
                   data.error.code,
                   data.error.message,
-                  true,
+                  data.error.recoverable !== false,
                   operationId,
                 ),
               );
@@ -405,7 +436,7 @@ export function createWorkerEngine(options: EngineOptions = {}): Engine {
                 request,
                 tag,
                 operationId,
-                limits: { ...DEFAULT_LIMITS, ...options.limits },
+                limits,
                 definitions: options.definitions ?? {},
                 datumGrids: options.datumGrids ?? {},
               },

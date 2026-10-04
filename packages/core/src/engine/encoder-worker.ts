@@ -1,7 +1,8 @@
 /**
  * Minimal worker protocol for optional raster encoders. This entry is for plugin
  * workers; it imports no input decoders, React components or concrete encoders.
- * @module encoder-worker
+ * @module @georeferencing/core/encoder-worker
+ * @group @georeferencing/core
  */
 
 import type { DatumGrids, Definitions } from "../core/projection.js";
@@ -81,11 +82,12 @@ export function installEncoderWorker(encoder: RasterEncoder): void {
         raster.data.buffer as ArrayBuffer,
       ]);
     } catch (error) {
-      const e = error as Error & { code?: string };
+      const e = error as Error & { code?: string; recoverable?: boolean };
       send({
         error: {
           code: e.code ?? "ENCODER",
           message: e.message ?? String(error),
+          recoverable: e.recoverable !== false,
         },
       });
     }

@@ -1,4 +1,5 @@
 ---
+group: Guides
 title: Optional export plugins
 ---
 
@@ -21,7 +22,7 @@ Use `exports: [geoTiff()]` for only GeoTIFF, or any subset of the example's `for
 | `geoTiff()` | `geotiff` | North-up 8-bit RGB/RGBA GeoTIFF |
 | `jpeg()` | `jpeg` | JPEG, `.jgw` world file, `.crs.json` sidecar |
 | `pdf()` | `pdf` | PDF map/alignment report with embedded diagnostics |
-| `worldFile()` | `world-file` | Normalized source PNG, `.pgw`, CRS metadata; Linear/Helmert only |
+| `worldFile()` | `world-file` | Normalized source PNG, `.pgw`, CRS metadata; Linear/Helmert only, or also affine with `worldFile({ affine: true })` |
 | `session()` | `session` | Complete session JSON, including unfinished alignment |
 | `points()` | `points` | QGIS `.points`; pass custom projection definitions if required |
 | `accuracy()` | `accuracy` | Full-precision JSON diagnostics |

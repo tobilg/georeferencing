@@ -110,3 +110,50 @@ it("NFR-03/AC-18 codec overrides share the engine scheduler, transfer buffers an
   expect(queue.running).toBe(0);
   engine.dispose();
 });
+
+it("worker failures carry recoverability and the engine exposes its limits", async () => {
+  const tag = { documentId: "d", imageId: "i", alignmentRevision: 1 };
+  const fake = (
+    respond: (worker: Worker, message: { operationId: string }) => void,
+  ) =>
+    createWorkerEngine({
+      limits: { maxGcps: 12 },
+      workerFactory: () => {
+        const worker = {
+          terminate() {},
+          postMessage(message: { operationId: string }) {
+            queueMicrotask(() => respond(worker, message));
+          },
+        } as unknown as Worker;
+        return worker;
+      },
+    });
+  const request = { kind: "inspect" as const, file: new File([], "a.png") };
+  const crashed = fake((worker) =>
+    worker.onerror?.({ message: "" } as ErrorEvent),
+  );
+  expect(crashed.limits?.maxGcps).toBe(12);
+  await expect(crashed.run(request, tag)).rejects.toMatchObject({
+    code: "WORKER",
+    recoverable: false,
+  });
+  const garbled = fake((worker) => worker.onmessageerror?.({} as MessageEvent));
+  await expect(garbled.run(request, tag)).rejects.toMatchObject({
+    recoverable: false,
+  });
+  for (const recoverable of [true, false, undefined]) {
+    const reported = fake((worker, message) =>
+      worker.onmessage?.({
+        data: {
+          tag,
+          operationId: message.operationId,
+          error: { code: "FORMAT", message: "bad", recoverable },
+        },
+      } as MessageEvent),
+    );
+    await expect(reported.run(request, tag)).rejects.toMatchObject({
+      code: "FORMAT",
+      recoverable: recoverable !== false,
+    });
+  }
+});

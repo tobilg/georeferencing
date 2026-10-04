@@ -1,4 +1,5 @@
 ---
+group: Guides
 title: Workers, packaging and deployment
 ---
 
@@ -8,7 +9,7 @@ title: Workers, packaging and deployment
 
 The default engine lazily creates an ES module worker relative to its installed module. Vite consumers should use `worker: { format: "es" }` in their Vite configuration. The worker is bundled in `@georeferencing/core`; no WASM binary, CDN, SharedArrayBuffer or cross-origin isolation is required.
 
-For explicit asset placement, copy the installed `dist/engine/worker.js` to a same-origin URL and pass that URL as `workerUrl`. Preserve its linked license notice beside it and retain the package license inventory in your distribution. Alternatively supply `workerFactory: () => new Worker(url, { type: "module" })`. Each returned worker belongs to one operation and is terminated afterwards; do not return a worker shared with unrelated application work.
+The worker script is exported as `@georeferencing/core/worker`, so bundlers can emit it directly; with Vite, `import ProcessingWorker from "@georeferencing/core/worker?worker"` and pass `workerFactory: () => new ProcessingWorker()`. For explicit asset placement, copy the installed `dist/engine/worker.js` to a same-origin URL and pass that URL as `workerUrl`. Preserve its linked license notice beside it and retain the package license inventory in your distribution. Alternatively supply `workerFactory: () => new Worker(url, { type: "module" })`. Each returned worker belongs to one operation and is terminated afterwards; do not return a worker shared with unrelated application work.
 
 Use a URL that includes your deployment base path. Your CSP must permit the worker, local blob image previews, and your configured reference/persistence destinations. The package has no default image upload or telemetry. The repository's clean-consumer check exercises a packed installation with a non-root base path and same-origin worker CSP.
 

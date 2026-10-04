@@ -160,23 +160,22 @@ importers:
 
   packages/plugins:
     dependencies:
-      '@georeferencing/core':
-        specifier: workspace:^
-        version: link:../core
       pdf-lib:
         specifier: ^1.17.1
         version: 1.17.1
     devDependencies:
+      '@georeferencing/core':
+        specifier: workspace:*
+        version: link:../core
       typescript:
         specifier: 5.9.3
         version: 5.9.3
 
   packages/react:
-    dependencies:
-      '@georeferencing/core':
-        specifier: workspace:^
-        version: link:../core
     devDependencies:
+      '@georeferencing/core':
+        specifier: workspace:*
+        version: link:../core
       '@types/react':
         specifier: 19.2.14
         version: 19.2.14

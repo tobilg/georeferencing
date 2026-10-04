@@ -68,6 +68,9 @@ writeFileSync(
       overrides: {
         "@georeferencing/core": packageFiles["@georeferencing/core"],
       },
+      // A local tarball never satisfies the published "^version" peer range; the
+      // single-copy assertions below verify the peer resolution instead.
+      peerDependencyRules: { allowAny: ["@georeferencing/core"] },
     },
     null,
     2,
@@ -124,17 +127,27 @@ assert.equal(installedManifest.peerDependencies.react, undefined);
 const reactManifest = JSON.parse(
   readFileSync(join(installedReact, "package.json"), "utf8"),
 );
-assert.equal(reactManifest.dependencies["@georeferencing/plugins"], undefined);
+assert.equal(
+  reactManifest.dependencies?.["@georeferencing/plugins"],
+  undefined,
+);
+// Core is a peer, so applications always share one core and one projection registry.
 for (const installed of [installedReact, installedPlugins]) {
   const manifest = JSON.parse(
     readFileSync(join(installed, "package.json"), "utf8"),
   );
   assert.equal(
-    manifest.dependencies["@georeferencing/core"],
+    manifest.peerDependencies["@georeferencing/core"],
     `^${corePkg.version}`,
   );
-  assert.equal(manifest.dependencies.typedoc, undefined);
+  assert.equal(manifest.dependencies?.["@georeferencing/core"], undefined);
+  assert.equal(manifest.dependencies?.typedoc, undefined);
 }
+assert.equal(
+  existsSync(join(installedReact, "node_modules/@georeferencing/core")),
+  false,
+  "React must resolve the application's core instead of a nested copy",
+);
 // A second installation proves core works without installing UI or export packages.
 const headlessDirectory = mkdtempSync(
   join(tmpdir(), "georeferencing-headless-"),
@@ -209,6 +222,9 @@ writeFileSync(
       overrides: {
         "@georeferencing/core": packageFiles["@georeferencing/core"],
       },
+      // A local tarball never satisfies the published "^version" peer range; the
+      // single-copy assertions below verify the peer resolution instead.
+      peerDependencyRules: { allowAny: ["@georeferencing/core"] },
     },
     null,
     2,

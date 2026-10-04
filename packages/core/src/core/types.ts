@@ -157,6 +157,14 @@ export interface OutputSettings {
    * @defaultValue `1`
    */
   predictor?: 1 | 2;
+  /**
+   * Maximum error, in source pixels from 0 to 1, of the approximate transformer used when
+   * the inverse mapping is expensive (thin plate spline or a reprojected output CRS).
+   * `0` maps every output pixel exactly; `0.125` matches the GDAL warper default and is
+   * much faster. Previews always use `0.125`.
+   * @defaultValue `0.0001`
+   */
+  approximationError?: number;
 }
 /**
  * Versioned, JSON-serializable editor document. Use controller methods to change its
@@ -243,6 +251,8 @@ export interface Limits {
    */
   maxGcps: number;
 }
+/** Hard enabled-point limit of the fitter, independent of configurable budgets. */
+export const MAX_GCPS = 128;
 /**
  * Default bounded workload. Override individual values through the worker engine options
  * after validating the host environment.
@@ -253,12 +263,12 @@ export const DEFAULT_LIMITS: Limits = {
   maxOutputPixels: 24_000_000,
   maxMemoryBytes: 768 * 1024 * 1024,
   previewMaxDimension: 768,
-  maxGcps: 128,
+  maxGcps: MAX_GCPS,
 };
 /**
  * Processing implementation identifier included in save envelopes and accuracy reports.
  */
-export const ENGINE_VERSION = "js-warp/0.2.0";
+export const ENGINE_VERSION = "js-warp/0.3.0";
 /**
  * Display labels and minimum enabled GCP counts. Meeting the count alone does not
  * guarantee rank, conditioning or a valid warp domain.

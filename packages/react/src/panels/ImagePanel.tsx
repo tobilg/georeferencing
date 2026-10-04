@@ -35,6 +35,7 @@ export function ImagePanel({
 }) {
   const s = useGeoreferencer(controller),
     image = s.document.sourceImage,
+    imageWidth = image?.width,
     svg = useRef<SVGSVGElement>(null);
   const view: [number, number, number, number] = s.imageView ?? [
     0, 0, 100, 100,
@@ -51,6 +52,10 @@ export function ImagePanel({
     ]);
   const filterId = `rg-stretch-${useId().replace(/:/g, "")}`;
   const displayPixels = useRef<ImageData | null>(null);
+  // Preview pixels per canonical image pixel, known once the preview has loaded.
+  const [previewScale, setPreviewScale] = useState(0);
+  // On-screen pixels per canonical image pixel for the current view.
+  const [screenScale, setScreenScale] = useState(0);
   const stretchHistogram = (local: boolean) => {
     const pixels = displayPixels.current;
     if (!pixels || !image) return;
@@ -148,6 +153,7 @@ export function ImagePanel({
         canvas.width,
         canvas.height,
       );
+      if (imageWidth) setPreviewScale(img.width / imageWidth);
       const data = displayPixels.current.data,
         bins = Array<number>(32).fill(0);
       for (let i = 0; i < data.length; i += 4)
@@ -162,10 +168,35 @@ export function ImagePanel({
     return () => {
       disposed = true;
       displayPixels.current = null;
+      setPreviewScale(0);
       img.onload = null;
       img.src = "";
     };
-  }, [s.imageUrl]);
+  }, [s.imageUrl, imageWidth]);
+  // Track the on-screen scale; the viewBox keeps its aspect ratio ("meet").
+  const viewWidth = view[2],
+    viewHeight = view[3];
+  useEffect(() => {
+    const element = svg.current;
+    if (!element) return;
+    const measure = () =>
+      setScreenScale(
+        Math.min(
+          element.clientWidth / viewWidth,
+          element.clientHeight / viewHeight,
+        ),
+      );
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [viewWidth, viewHeight]);
+  // Zoomed beyond the preview resolution: show full-resolution detail for precise picking.
+  const needsDetail = previewScale > 0 && screenScale > previewScale * 1.25;
+  useEffect(() => {
+    if (needsDetail) void controller.requestDetailImage();
+  }, [needsDetail, controller]);
   const point = (e: { clientX: number; clientY: number }): XY => {
     const matrix = svg.current?.getScreenCTM();
     if (!matrix) return [0, 0];
@@ -370,6 +401,19 @@ export function ImagePanel({
                 height={image.height}
                 style={{
                   filter: `url(#${filterId}) brightness(${brightness}) contrast(${contrast})`,
+                }}
+              />
+            )}
+            {s.detailImageUrl && needsDetail && (
+              <image
+                href={s.detailImageUrl}
+                width={image.width}
+                height={image.height}
+                data-detail=""
+                style={{
+                  filter: `url(#${filterId}) brightness(${brightness}) contrast(${contrast})`,
+                  // Show individual source pixels once each covers several screen pixels.
+                  imageRendering: screenScale >= 4 ? "pixelated" : "auto",
                 }}
               />
             )}

@@ -1,12 +1,20 @@
-import type { Engine, JobTag, Raster } from "../engine/index.js";
+import type { JobTag, Raster } from "../engine/index.js";
+import type {
+  ControllerOptions,
+  EditorSnapshot,
+  PreviewMode,
+  ReferenceStatus,
+  Tool,
+} from "./editor-types.js";
 import type { ExportFormat, ExportResult } from "./exports.js";
-import { abortable } from "./exports.js";
-import { assertJson, validateFeatures } from "./geometry.js";
+import { abortable, validateExportFormats } from "./exports.js";
+import { validateGcps } from "./gcps.js";
+import { assertJson, outsideBounds, validateFeatures } from "./geometry.js";
 import { parseSession } from "./interchange.js";
+import { clone, freeze } from "./snapshot.js";
 import type { Fit } from "./transform.js";
 import type {
   Document,
-  Extent,
   Features,
   Gcp,
   ImageMetadata,
@@ -23,256 +31,30 @@ import {
   MODELS,
   uid,
 } from "./types.js";
+import { ViewHistory } from "./view-history.js";
 
-/** Active editor interaction; geometry names match GeoJSON geometry types. */
-export type Tool =
-  | "navigate"
-  | "gcp"
-  | "Point"
-  | "LineString"
-  | "Polygon"
-  | "modify";
-/** Lifecycle state of an asynchronous editor operation. */
-export type Status = "idle" | "running" | "succeeded" | "failed" | "cancelled";
-/** When committed alignment edits are fitted and rendered. */
-export type PreviewMode = "manual" | "automatic";
-/**
- * Immutable accepted-feature snapshot for host persistence. Replace only features
- * belonging to `documentId`; omitted IDs represent deletions within that document.
- */
-export interface SaveEnvelope {
-  /** Idempotency key reused when retrying the same revision and save kind. */
-  requestId: string;
-  /** Host replacement contract, scoped exclusively to this document. */
-  semantics: "replace-document-features";
-  /** Stable document scope; never replace unrelated host features. */
-  documentId: string;
-  /** Exact submitted revision; completion must not acknowledge subsequent edits. */
-  documentRevision: number;
-  /** Deep-frozen snapshot with source identity and per-feature provenance. */
-  document: Document;
-  /** Accepted GeoJSON in longitude/latitude, sharing the snapshot feature collection. */
-  features: Features;
-  /** Processing engine version for provenance. */
-  engine: string;
-  /** Training residual summary for the accepted alignment. */
-  diagnostics: {
-    /** Root mean squared forward residual in working-CRS units. */
-    rmse: number;
-    /** Formula used for the reported training RMSE. */
-    definition: string;
-    /** Working CRS supplying the residual units. */
-    crs: string;
-  };
-}
-/** Snapshot presented before removing, replacing or restoring over unsaved work. */
-export interface GuardContext {
-  /** Document at guard invocation. New edits can cause the guard to run again. */
-  document: Document;
-  /** Whether a configured host handler can save this snapshot. */
-  canSave: boolean;
-  /** Preferred eligible handler: draft first, otherwise accepted features, or null. */
-  saveKind: "draft" | "features" | null;
-}
-/**
- * Host services and initial state for one editor. The controller does not own the map or
- * persist data itself.
- */
-export interface ControllerOptions {
-  /** Initial preview policy. Manual waits for `refit`; automatic updates after eligible edits. @defaultValue `"automatic"` */
-  previewMode?: PreviewMode;
-  /** Explicit opt-in export formats. No file exporters are enabled by default. */
-  exports?: readonly ExportFormat[];
-  /**
-   * Explicit initial working CRS; `initialDocument` supplies its own CRS when provided.
-   */
-  workingCrs: string;
-  /**
-   * Host-supplied engine. Controller disposal cancels its jobs but does not dispose a
-   * potentially shared engine.
-   */
-  engine: Engine;
-  /**
-   * Enable drawing after explicit alignment confirmation.
-   * @defaultValue `false`
-   */
-  digitizing?: boolean;
-  /**
-   * Validated and cloned session metadata. Use `restoreSession` to load matching image
-   * bytes before alignment operations.
-   */
-  initialDocument?: Document;
-  /**
-   * Receives each committed frozen document for host draft synchronization. This is not a
-   * save acknowledgement.
-   */
-  onChange?: (document: Document) => void;
-  /**
-   * Persist an immutable accepted-feature snapshot. Resolve after success; reject to
-   * preserve a retryable unsaved draft.
-   */
-  onSave?: (snapshot: Readonly<SaveEnvelope>) => Promise<void>;
-  /**
-   * Persist unfinished work independently of accepted-feature eligibility. Image bytes
-   * are not included; the host arranges asset persistence.
-   */
-  onSaveDraft?: (
-    snapshot: Readonly<{
-      /** Idempotency key for this document revision and draft-save kind. */
-      requestId: string;
-      /** Frozen snapshot of the exact draft submitted. */
-      document: Document;
-    }>,
-  ) => Promise<void>;
-  /**
-   * Resolve Save/Discard/Cancel before a destructive image transition. Missing guards
-   * default to cancel when work is dirty.
-   */
-  guard?: (context: GuardContext) => Promise<"save" | "discard" | "cancel">;
-  /**
-   * Structured error notification. Aborts are cancellation and are not reported as
-   * errors.
-   */
-  onError?: (error: {
-    /** Machine-readable error category. */
-    code: string;
-    /** Actionable human-readable explanation. */
-    message: string;
-    /** Worker operation identifier when available. */
-    operationId?: string;
-    /** Whether correcting input and retrying may recover the operation. */
-    recoverable: boolean;
-  }) => void;
-  /** Observe tool changes to coordinate host-owned interactions with the editor. */
-  onActiveToolChange?: (tool: Tool) => void;
-  /**
-   * Optional longitude/latitude extent enforced when saving accepted features; separate
-   * from WFS and raster bounds.
-   */
-  drawingBounds?: Extent;
-}
-/**
- * Display status of a reference provider. Loader failures do not disable manual GCP
- * entry.
- */
-export interface ReferenceStatus {
-  /** Human-readable source name. */
-  label: string;
-  /** Most recent provider request state. */
-  state: "loading" | "ready" | "error";
-  /** True when limits or service behavior prevented complete results. */
-  partial?: boolean;
-  /** Service error or explanation of incomplete results. */
-  message?: string;
-}
-/**
- * Subscription snapshot combining a frozen document with transient UI and processing
- * state. Read without mutation; persist only `document`.
- */
-export interface EditorSnapshot {
-  /** Transient preview policy; changed through `setPreviewMode`, not persisted in sessions. */
-  previewMode: PreviewMode;
-  /** Configured lazy export descriptors; transient configuration, never session data. */
-  exportFormats: readonly ExportFormat[];
-  /** Provider statuses indexed by configured provider ID. */
-  references: Record<string, ReferenceStatus>;
-  /** Authoritative frozen serializable document. */
-  document: Document;
-  /** Current fit, or null while invalid, absent or recalculating. */
-  fit: Fit | null;
-  /** Alignment revision represented by the fit, or null. */
-  fitRevision: number | null;
-  /** Reduced-resolution warped raster in the working CRS, or null. */
-  preview: Raster | null;
-  /**
-   * Controller-owned normalized preview object URL. Do not persist or revoke it in host
-   * code.
-   */
-  imageUrl: string | null;
-  /** Canonical image endpoint awaiting a paired map coordinate, or null. */
-  pendingImagePoint: XY | null;
-  /** Active package interaction. */
-  tool: Tool;
-  /** Alignment editing or confirmed drawing stage. */
-  mode: "align" | "draw";
-  /** Image inspection/replacement state. */
-  loading: Status;
-  /** Fit and preview generation state. */
-  fitting: Status;
-  /** Raster or world-file export state. */
-  exporting: Status;
-  /** Host persistence state; edits may continue during saving. */
-  saving: Status;
-  /** Most recent displayable error message, or null. */
-  error: string | null;
-  /** Structured details for host-localized errors, or null. */
-  errorDetail: {
-    /** Machine-readable error category. */
-    code: string;
-    /** Default human-readable message. */
-    message: string;
-    /** Worker operation ID when available. */
-    operationId?: string;
-    /** Whether the user may correct input and retry. */
-    recoverable: boolean;
-  } | null;
-  /** Export progress fraction from 0 to 1. */
-  progress: number;
-  /**
-   * Whether image-dependent work is newer than both draft and accepted-feature save
-   * acknowledgements.
-   */
-  dirty: boolean;
-  /** Latest acknowledged accepted-feature revision; draft saves do not set this value. */
-  savedRevision: number | null;
-  /** Whether document edit history has an undo entry. */
-  canUndo: boolean;
-  /** Whether document edit history has a redo entry. */
-  canRedo: boolean;
-  /** Transient overlay opacity from 0 to 1. */
-  opacity: number;
-  /** Whether the transformed overlay is displayed. */
-  visible: boolean;
-  /**
-   * Image viewport `[x, y, width, height]` in canonical pixels; distinct from a min/max
-   * extent.
-   */
-  imageView: [number, number, number, number] | null;
-  /** Optional one-way viewport synchronization; off keeps navigation independent. */
-  linkedNavigation: "off" | "image-to-map" | "map-to-image";
-}
-/** Recursively freeze serializable snapshots against host-callback mutation. */
-function freeze<T>(value: T): T {
-  if (value && typeof value === "object" && !Object.isFrozen(value)) {
-    Object.freeze(value);
-    Object.values(value).forEach(freeze);
-  }
-  return value;
-}
-const clone = <T>(value: T): T => structuredClone(value);
+export type {
+  ControllerOptions,
+  EditorSnapshot,
+  GuardContext,
+  PreviewMode,
+  ReferenceStatus,
+  SaveEnvelope,
+  Status,
+  Tool,
+} from "./editor-types.js";
+
 const abortError = (e: unknown) =>
   e instanceof Error && e.name === "AbortError";
-/** Copy and validate descriptors without loading plugin implementations. */
-function validateExportFormats(
-  formats: readonly ExportFormat[],
-): readonly ExportFormat[] {
-  const ids = new Set<string>();
-  return Object.freeze(
-    formats.map((format) => {
-      if (
-        !format.id ||
-        ids.has(format.id) ||
-        !format.label ||
-        typeof format.load !== "function"
-      )
-        fail(
-          "EXPORT_CONFIG",
-          "Export formats require unique IDs, labels and lazy loaders.",
-        );
-      ids.add(format.id);
-      return Object.freeze({ ...format });
-    }),
-  );
+/** Accepted-geometry errors per immutable feature collection. */
+const featureErrors = new WeakMap<Features, string[]>();
+function acceptedErrors(features: Features): string[] {
+  let errors = featureErrors.get(features);
+  if (!errors) {
+    errors = validateFeatures(features);
+    if (Object.isFrozen(features)) featureErrors.set(features, errors);
+  }
+  return errors;
 }
 /**
  * Authoritative editor store with revision-safe processing, edit history and host persistence.
@@ -291,8 +73,9 @@ export class GeoreferencerController {
   private redoStack: Document[] = [];
   private file: File | null = null;
   private previewBlob: Blob | null = null;
-  private imageHistory: [number, number, number, number][] = [];
-  private imageHistoryIndex = -1;
+  private detailBlob: Blob | null = null;
+  private detailAbort?: AbortController;
+  private imageHistory = new ViewHistory<[number, number, number, number]>();
   private imageHistoryTimer?: ReturnType<typeof setTimeout>;
   private fitAbort?: AbortController;
   private exportAbort?: AbortController;
@@ -308,6 +91,8 @@ export class GeoreferencerController {
     kind: string;
   };
   private savePromise?: Promise<void>;
+  /** Request identity of the in-flight save, if any. */
+  private inFlightSave?: { documentId: string; revision: number; kind: string };
   /**
    * Create a controller and validate any initial session. Matching image bytes are restored separately.
    * @param options - Host engine, CRS, lifecycle and persistence callbacks.
@@ -326,6 +111,7 @@ export class GeoreferencerController {
       fitRevision: null,
       preview: null,
       imageUrl: null,
+      detailImageUrl: null,
       pendingImagePoint: null,
       tool: "navigate",
       mode: "align",
@@ -504,6 +290,15 @@ export class GeoreferencerController {
       );
     return this.state.fit;
   }
+  /** Effective control-point budget of the configured engine. */
+  private get maxGcps(): number {
+    return this.options.engine.limits?.maxGcps ?? DEFAULT_LIMITS.maxGcps;
+  }
+  /** Validate and commit a complete control-point list as one alignment edit. */
+  private commitGcps(d: Document): void {
+    validateGcps(d.gcps, this.maxGcps);
+    this.commit(d, true);
+  }
   private tag(): JobTag {
     return {
       documentId: this.state.document.id,
@@ -614,8 +409,6 @@ export class GeoreferencerController {
     if (![...image, ...target].every(Number.isFinite))
       fail("COORDINATE", "Coordinates must be finite.");
     const d = clone(this.state.document);
-    if (d.gcps.length >= DEFAULT_LIMITS.maxGcps)
-      fail("BUDGET", "Maximum 128 GCPs.");
     d.gcps.push({
       id: uid(),
       label: Math.max(0, ...d.gcps.map((p) => p.label)) + 1,
@@ -623,14 +416,16 @@ export class GeoreferencerController {
       image: [...image],
       target: [...target],
       crs,
-      reference,
+      ...(reference ? { reference: clone(reference) } : {}),
     });
+    validateGcps(d.gcps, this.maxGcps);
     this.emit({ pendingImagePoint: null });
     this.commit(d, true);
   }
   /**
    * Edit either endpoint, target CRS or enabled state by ID. Requires alignment mode and
    * invalidates the fit; unknown IDs are ignored.
+   * @throws {@link GeoreferenceError} For nonfinite coordinates or an empty CRS.
    */
   updateGcp(
     id: string,
@@ -641,7 +436,7 @@ export class GeoreferencerController {
       gcp = d.gcps.find((p) => p.id === id);
     if (!gcp) return;
     Object.assign(gcp, clone(patch));
-    this.commit(d, true);
+    this.commitGcps(d);
   }
   /** Delete a pair and schedule fitting. Requires alignment mode. */
   removeGcp(id: string): void {
@@ -653,12 +448,13 @@ export class GeoreferencerController {
   /**
    * Replace all pairs as one undoable alignment edit, for example after `.points` import.
    * Input is cloned.
+   * @throws {@link GeoreferenceError} For invalid or duplicate points, or more points than the engine budget.
    */
   replaceGcps(gcps: Gcp[]): void {
     this.requireAlign();
     const d = clone(this.state.document);
     d.gcps = clone(gcps);
-    this.commit(d, true);
+    this.commitGcps(d);
   }
   /**
    * Select the exact model and invalidate confirmation/review. Requires alignment mode.
@@ -719,35 +515,21 @@ export class GeoreferencerController {
         "VIEW",
         "Image view must have finite coordinates and positive dimensions.",
       );
-    if (this.imageHistoryIndex < 0) {
-      this.imageHistory = [[...view]];
-      this.imageHistoryIndex = 0;
-    }
+    if (this.imageHistory.empty) this.imageHistory.record([...view]);
     this.emit({ imageView: [...view] });
     clearTimeout(this.imageHistoryTimer);
     this.imageHistoryTimer = setTimeout(() => this.recordImageView(), 180);
   }
   private recordImageView(): void {
     const view = this.state.imageView;
-    if (
-      !view ||
-      JSON.stringify(view) ===
-        JSON.stringify(this.imageHistory[this.imageHistoryIndex])
-    )
-      return;
-    this.imageHistory = this.imageHistory.slice(0, this.imageHistoryIndex + 1);
-    this.imageHistory.push([...view]);
-    if (this.imageHistory.length > 50) this.imageHistory.shift();
-    this.imageHistoryIndex = this.imageHistory.length - 1;
+    if (view) this.imageHistory.record([...view]);
   }
   /** Navigate bounded image-view history: -1 goes back, 1 goes forward. */
   navigateImageHistory(direction: -1 | 1): void {
     clearTimeout(this.imageHistoryTimer);
     this.recordImageView();
-    const index = this.imageHistoryIndex + direction;
-    if (index < 0 || index >= this.imageHistory.length) return;
-    this.imageHistoryIndex = index;
-    this.emit({ imageView: [...this.imageHistory[index]] });
+    const view = this.imageHistory.step(direction);
+    if (view) this.emit({ imageView: [...view] });
   }
   /** Configure one-way image/map navigation without modifying alignment. */
   setLinkedNavigation(
@@ -779,7 +561,8 @@ export class GeoreferencerController {
   }
   /**
    * Confirm exactly the current valid alignment. Enters drawing mode if enabled; existing
-   * drawings still require explicit review.
+   * drawings still require explicit review. Confirmation is not an undoable edit: undo
+   * cannot revoke it, and any later alignment edit invalidates it.
    */
   confirm(): void {
     this.validFit();
@@ -787,7 +570,7 @@ export class GeoreferencerController {
     d.confirmedAlignmentRevision = d.alignmentRevision;
     if (d.features.features.length === 0)
       d.featuresReviewedAgainstAlignmentRevision = d.alignmentRevision;
-    this.commit(d, false);
+    this.commit(d, false, false);
     this.emit({ mode: this.options.digitizing ? "draw" : "align" });
     this.setTool("navigate");
   }
@@ -801,6 +584,7 @@ export class GeoreferencerController {
   }
   /**
    * Mark current drawings reviewed against the confirmed fit. Does not move or save them.
+   * Like confirmation, review is not an undoable edit.
    */
   reviewFeatures(): void {
     const d = clone(this.state.document);
@@ -811,7 +595,7 @@ export class GeoreferencerController {
     Object.values(d.provenanceByFeatureId).forEach((p) => {
       p.lastReviewedAgainstAlignmentRevision = d.alignmentRevision;
     });
-    this.commit(d, false);
+    this.commit(d, false, false);
   }
   /**
    * Replace geographic drawings as one undoable edit in drawing mode. Requires stable
@@ -844,7 +628,7 @@ export class GeoreferencerController {
     });
     d.provenanceByFeatureId = Object.fromEntries(entries);
     this.commit(d, false);
-    const errors = validateFeatures(features);
+    const errors = acceptedErrors(this.state.document.features);
     if (errors.length) this.emit({ error: errors.join(" ") });
   }
   /** Remove a document feature and its provenance by ID. Requires drawing mode. */
@@ -898,6 +682,13 @@ export class GeoreferencerController {
     this.commit(d, alignment, false);
   }
   /**
+   * Accepted-geometry errors of the current drawings, computed once per feature revision.
+   * Cheap to call during rendering; an empty list means the drawings can be accepted.
+   */
+  getFeatureErrors(): readonly string[] {
+    return acceptedErrors(this.state.document.features);
+  }
+  /**
    * Check image bytes, current fit, confirmation, review and accepted geometry validity.
    * Handler availability and drawing bounds are additionally checked by `save`.
    */
@@ -909,18 +700,28 @@ export class GeoreferencerController {
         this.state.fitRevision === d.alignmentRevision &&
         d.confirmedAlignmentRevision === d.alignmentRevision &&
         d.featuresReviewedAgainstAlignmentRevision === d.alignmentRevision &&
-        validateFeatures(d.features).length === 0,
+        acceptedErrors(d.features).length === 0,
     );
   }
   /**
    * Submit a frozen revision snapshot to the host.
    *
-   * Concurrent calls share the in-flight promise. Retries for the same document/revision/kind reuse the request ID. Older request success acknowledges only that revision, leaving newer edits dirty. Draft saves can preserve unconfirmed work; accepted-feature saves require current confirmation, review and valid geometry.
+   * A call for the same document, revision and kind as the in-flight save shares its promise; any other call waits for the in-flight save to settle and then submits its own snapshot. Retries for the same document/revision/kind reuse the request ID. Older request success acknowledges only that revision, leaving newer edits dirty. Draft saves can preserve unconfirmed work; accepted-feature saves require current confirmation, review and valid geometry.
    * @param kind - `features` (default) or `draft`, selecting the host callback.
    * @throws {@link GeoreferenceError} For missing handlers or ineligible features. Host rejections propagate and retain the draft.
    */
   async save(kind: "features" | "draft" = "features"): Promise<void> {
-    if (this.savePromise) return this.savePromise;
+    while (this.savePromise) {
+      const pending = this.savePromise,
+        current = this.state.document;
+      if (
+        this.inFlightSave?.kind === kind &&
+        this.inFlightSave.documentId === current.id &&
+        this.inFlightSave.revision === current.documentRevision
+      )
+        return pending;
+      await pending.catch(() => {});
+    }
     const d = this.state.document;
     if (
       kind === "features" &&
@@ -935,26 +736,15 @@ export class GeoreferencerController {
         "SAVE",
         "No host draft-save handler is configured. Export session JSON or discard/cancel.",
       );
-    if (this.options.drawingBounds && kind === "features") {
-      const b = this.options.drawingBounds;
-      for (const f of d.features.features) {
-        const coordinates =
-          f.geometry.type === "Point"
-            ? [f.geometry.coordinates]
-            : f.geometry.type === "LineString"
-              ? f.geometry.coordinates
-              : f.geometry.coordinates.flat();
-        if (
-          coordinates.some(
-            (p) => p[0] < b[0] || p[0] > b[2] || p[1] < b[1] || p[1] > b[3],
-          )
-        )
-          fail(
-            "DRAW_BOUNDS",
-            "A drawing is outside the configured longitude/latitude drawing bounds.",
-          );
-      }
-    }
+    if (
+      kind === "features" &&
+      this.options.drawingBounds &&
+      outsideBounds(d.features, this.options.drawingBounds)
+    )
+      fail(
+        "DRAW_BOUNDS",
+        "A drawing is outside the configured longitude/latitude drawing bounds.",
+      );
     if (
       !this.saveRequest ||
       this.saveRequest.documentId !== d.id ||
@@ -1003,12 +793,21 @@ export class GeoreferencerController {
         throw e;
       }
     };
-    this.savePromise = Promise.resolve()
+    this.inFlightSave = {
+      documentId: d.id,
+      revision: d.documentRevision,
+      kind,
+    };
+    const promise = Promise.resolve()
       .then(run)
       .finally(() => {
-        this.savePromise = undefined;
+        if (this.savePromise === promise) {
+          this.savePromise = undefined;
+          this.inFlightSave = undefined;
+        }
       });
-    return this.savePromise;
+    this.savePromise = promise;
+    return promise;
   }
   /**
    * Repeat the guard if edits arrive during a decision/save; never discard an unreviewed
@@ -1112,11 +911,11 @@ export class GeoreferencerController {
       this.exportAbort?.abort();
       this.fitGeneration++;
       if (this.state.imageUrl) URL.revokeObjectURL(this.state.imageUrl);
+      this.releaseDetail(true);
       this.file = file;
       this.previewBlob = blob;
       clearTimeout(this.imageHistoryTimer);
-      this.imageHistory = [];
-      this.imageHistoryIndex = -1;
+      this.imageHistory.clear();
       this.undoStack = [];
       this.redoStack = [];
       const d = restored
@@ -1144,6 +943,7 @@ export class GeoreferencerController {
         mode: "align",
         tool: "navigate",
         imageUrl: blob ? URL.createObjectURL(blob) : null,
+        detailImageUrl: null,
         imageView: null,
         linkedNavigation: "off",
         loading: "succeeded",
@@ -1164,6 +964,61 @@ export class GeoreferencerController {
       }
       return false;
     }
+  }
+  /**
+   * Load a full-resolution display image for precise control-point placement, typically
+   * once the image view is zoomed beyond the preview resolution. Idempotent while loading
+   * or loaded. Unrotated PNG, JPEG and WebP files are displayed directly; other inputs are
+   * normalized by the engine within its budgets. Failures are reported but never block
+   * editing, and are not retried for the same image.
+   */
+  async requestDetailImage(): Promise<void> {
+    const file = this.file,
+      metadata = this.state.document.sourceImage;
+    if (
+      !file ||
+      !metadata ||
+      this.detailBlob ||
+      this.detailAbort ||
+      this.state.detailImageUrl
+    )
+      return;
+    const abort = new AbortController();
+    this.detailAbort = abort;
+    try {
+      const direct =
+        metadata.orientation === 1 &&
+        ["png", "jpeg", "webp"].includes(metadata.format);
+      const blob = direct
+        ? file
+        : (
+            await this.options.engine.run(
+              { kind: "normalize", file, metadata },
+              this.tag(),
+              { signal: abort.signal },
+            )
+          ).blob;
+      if (abort.signal.aborted || this.file !== file) return;
+      if (!blob) fail("ENGINE", "Image normalization did not return bytes.");
+      this.detailBlob = blob!;
+      this.emit({ detailImageUrl: URL.createObjectURL(blob!) });
+    } catch (e) {
+      if (!abort.signal.aborted && this.file === file) {
+        // Remember the failure so zooming does not repeat an over-budget request.
+        this.detailBlob = new Blob();
+        this.reportError(e);
+      }
+    } finally {
+      if (this.detailAbort === abort) this.detailAbort = undefined;
+    }
+  }
+  /** Abort detail loading and revoke its URL, optionally forgetting the loaded bytes. */
+  private releaseDetail(forget: boolean): void {
+    this.detailAbort?.abort();
+    this.detailAbort = undefined;
+    if (this.state.detailImageUrl)
+      URL.revokeObjectURL(this.state.detailImageUrl);
+    if (forget) this.detailBlob = null;
   }
   /**
    * Replace the explicitly enabled formats without changing session data. Cancels
@@ -1310,11 +1165,13 @@ export class GeoreferencerController {
   start(): void {
     if (this.previewBlob && !this.state.imageUrl)
       this.emit({ imageUrl: URL.createObjectURL(this.previewBlob) });
+    if (this.detailBlob?.size && !this.state.detailImageUrl)
+      this.emit({ detailImageUrl: URL.createObjectURL(this.detailBlob) });
     if (this.file && !this.state.fit) this.autoRefit();
   }
   /**
-   * Cancel image/fit/export work and revoke the preview URL, retaining document and
-   * source bytes for remount. Pending host saves are not cancelled.
+   * Cancel image/fit/export work and revoke the preview and detail URLs, retaining document
+   * and source bytes for remount. Pending host saves are not cancelled.
    */
   suspend(): void {
     clearTimeout(this.imageHistoryTimer);
@@ -1324,8 +1181,10 @@ export class GeoreferencerController {
     this.generation++;
     this.fitGeneration++;
     if (this.state.imageUrl) URL.revokeObjectURL(this.state.imageUrl);
+    this.releaseDetail(false);
     this.emit({
       imageUrl: null,
+      detailImageUrl: null,
       fitting:
         this.state.fitting === "running" ? "cancelled" : this.state.fitting,
       exporting:
@@ -1342,6 +1201,7 @@ export class GeoreferencerController {
     this.suspend();
     this.file = null;
     this.previewBlob = null;
+    this.detailBlob = null;
     this.listeners.clear();
     this.undoStack = [];
     this.redoStack = [];

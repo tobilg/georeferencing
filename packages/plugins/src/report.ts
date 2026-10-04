@@ -1,3 +1,9 @@
+/**
+ * Low-level PDF report creation and optional OpenLayers map capture; pdf-lib loads lazily.
+ * Import from `@georeferencing/plugins/report`.
+ * @module @georeferencing/plugins/report
+ * @group @georeferencing/plugins
+ */
 import type { Definitions, Document, Fit, XY } from "@georeferencing/core";
 import {
   coordinateUnits,
@@ -91,7 +97,7 @@ async function png(canvas: HTMLCanvasElement): Promise<Blob> {
  *
  * Calls renderSync and copies available canvas content; does not await outstanding tiles or capture arbitrary DOM overlays. WebGL/non-canvas renderers are outside this capture contract.
  * @param map - Visible initialized host map.
- * @throws {@link core.GeoreferenceError} If the viewport is unavailable or a source taints canvas export.
+ * @throws {@link "@georeferencing/core".GeoreferenceError} If the viewport is unavailable or a source taints canvas export.
  */
 export async function captureMap(map: ReportMap): Promise<Blob> {
   map.renderSync();
@@ -199,8 +205,14 @@ export async function createPdfReport(
     page = pdf.addPage([pageWidth, pageHeight]);
     y = pageHeight - margin;
   };
+  // Standard fonts use WinAnsi: keep every encodable character (such as umlauts and
+  // accents) and replace the rest; the attached JSON retains the full Unicode text.
+  const encodable = new Set(font.getCharacterSet());
   const text = (value: string, size = 10, fixed = false) => {
-    const safe = value.replace(/[^\x20-\x7e]/g, "?"),
+    const safe = Array.from(value.normalize("NFC"), (character) => {
+        const code = character.codePointAt(0)!;
+        return code >= 0x20 && encodable.has(code) ? character : "?";
+      }).join(""),
       width = Math.max(
         1,
         Math.floor(contentWidth / (size * (fixed ? 0.6 : 0.55))),

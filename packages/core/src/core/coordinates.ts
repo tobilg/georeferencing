@@ -24,7 +24,7 @@ export interface ProjectedFeatures {
  * @param crs - Destination CRS.
  * @param tolerance - Positive midpoint-deviation tolerance in output-CRS units.
  * @param definitions - Host projection definitions.
- * @throws {@link core.GeoreferenceError} For invalid geometry, wrapped segments, missing projections or subdivision-budget exhaustion.
+ * @throws {@link "@georeferencing/core".GeoreferenceError} For invalid geometry, wrapped segments, missing projections or subdivision-budget exhaustion.
  */
 export function featuresInCrs(
   features: Features,

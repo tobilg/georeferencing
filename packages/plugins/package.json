@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -59,10 +59,13 @@
     }
   },
   "dependencies": {
-    "@georeferencing/core": "workspace:^",
     "pdf-lib": "^1.17.1"
   },
+  "peerDependencies": {
+    "@georeferencing/core": "workspace:^"
+  },
   "devDependencies": {
+    "@georeferencing/core": "workspace:*",
     "typescript": "5.9.3"
   },
   "scripts": {

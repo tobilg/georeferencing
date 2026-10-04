@@ -1,7 +1,8 @@
 /**
  * Owned-layer integration with host maps, reference providers and WFS discovery.
  * Import from `@georeferencing/core/openlayers`.
- * @module openlayers
+ * @module @georeferencing/core/openlayers
+ * @group @georeferencing/core
  */
 import type { EventsKey } from "ol/events.js";
 import Feature from "ol/Feature.js";
@@ -19,7 +20,7 @@ import type OLMap from "ol/Map.js";
 import { unByKey } from "ol/Observable.js";
 import { register } from "ol/proj/proj4.js";
 import { get as getProjection } from "ol/proj.js";
-import ImageStatic from "ol/source/ImageStatic.js";
+import ImageSource from "ol/source/Image.js";
 import VectorSource from "ol/source/Vector.js";
 import { Circle, Fill, Stroke, Style, Text } from "ol/style.js";
 import proj4 from "proj4";
@@ -33,6 +34,7 @@ import {
 import { backward, forward } from "../core/transform.js";
 import type { Extent, XY } from "../core/types.js";
 import { fail, uid } from "../core/types.js";
+import { ViewHistory } from "../core/view-history.js";
 import { toGeographicFeature } from "./geometry.js";
 import type { Reference, SnapOptions } from "./references.js";
 import { loadWfs, queryBounds } from "./references.js";
@@ -125,6 +127,8 @@ export function registerProjections(
  * Attach package-owned overlay, GCP, residual and draft layers/interactions to an existing OpenLayers map.
  *
  * Call only in a browser after map creation. Borrowed layers are read without taking ownership. Detach removes owned resources and aborts reference requests while preserving the host map, layers and view. Do not combine this with the ready-made Georeferencer on the same controller/map: that component attaches its own binding.
+ *
+ * Invalid projection definitions or datum grids throw before any resource is attached. Later failures, such as an unknown map projection or a control point that cannot be projected, are reported through the controller error state instead of throwing.
  * @param map - Host-owned initialized map.
  * @param controller - Authoritative editor store.
  * @param options - Providers, projections, snapping and optional initial framing.
@@ -184,6 +188,13 @@ export function attachReferenceMap(
     zIndex: 1001,
   });
   const previewLayer = new ImageLayer({ zIndex: 999 });
+  let previewCanvas: HTMLCanvasElement | null = null;
+  const releasePreview = () => {
+    previewLayer.getSource()?.dispose();
+    previewLayer.setSource(null);
+    if (previewCanvas) previewCanvas.width = previewCanvas.height = 0;
+    previewCanvas = null;
+  };
   const owned = [previewLayer, residualLayer, draftLayer, gcpLayer];
   owned.forEach((layer) => {
     map.addLayer(layer);
@@ -420,8 +431,36 @@ export function attachReferenceMap(
     oldPreview: unknown,
     oldImageView: unknown,
     oldLink: unknown;
+  // Reporting an error emits a snapshot, which would re-enter sync. Errors are therefore
+  // reported after the update, without re-entry, and only when the failure changes.
+  let reporting = false,
+    reported: string | null = null;
   const sync = () => {
-    if (detached) return;
+    if (detached || reporting) return;
+    const errors: unknown[] = [];
+    try {
+      update(errors);
+    } catch (e) {
+      errors.push(e);
+    }
+    const message = errors.length ? String(errors[0]) : null;
+    // Re-report a persisting failure only after a later edit has cleared the error.
+    if (
+      message === null ||
+      (message === reported && controller.getSnapshot().error !== null)
+    ) {
+      reported = message;
+      return;
+    }
+    reported = message;
+    reporting = true;
+    try {
+      controller.reportError(errors[0]);
+    } finally {
+      reporting = false;
+    }
+  };
+  const update = (errors: unknown[]) => {
     const s = controller.getSnapshot(),
       mapCrs = ensureProjection();
     if (
@@ -467,6 +506,7 @@ export function attachReferenceMap(
       });
     }
     if (oldDoc !== s.document || oldPreview !== s.preview) {
+      oldDoc = s.document;
       gcps.clear();
       residuals.clear();
       for (const gcp of s.document.gcps) {
@@ -494,7 +534,7 @@ export function attachReferenceMap(
               ),
             );
         } catch (e) {
-          controller.reportError(e);
+          errors.push(e);
         }
       }
       drafts.clear();
@@ -504,11 +544,10 @@ export function attachReferenceMap(
           featureProjection: mapCrs,
         }),
       );
-      oldDoc = s.document;
     }
     if (oldPreview !== s.preview) {
-      previewLayer.getSource()?.dispose();
-      previewLayer.setSource(null);
+      oldPreview = s.preview;
+      releasePreview();
       if (s.preview) {
         const r = s.preview,
           canvas = document.createElement("canvas");
@@ -525,17 +564,25 @@ export function attachReferenceMap(
             0,
             0,
           );
+        previewCanvas = canvas;
+        const rx = (r.bounds[2] - r.bounds[0]) / r.width,
+          ry = (r.bounds[3] - r.bounds[1]) / r.height;
+        // A zero-argument loader is static: the canvas is used directly, without
+        // encoding a PNG data URL on the main thread.
         previewLayer.setSource(
-          new ImageStatic({
-            url: canvas.toDataURL(),
-            imageExtent: r.bounds,
+          new ImageSource({
+            loader: () =>
+              Promise.resolve({
+                image: canvas,
+                extent: r.bounds,
+                resolution: rx === ry ? ry : [rx, ry],
+                pixelRatio: 1,
+              }),
             projection: r.crs,
             interpolate: true,
           }),
         );
-        canvas.width = 0;
       }
-      oldPreview = s.preview;
     }
     previewLayer.setOpacity(s.opacity);
     previewLayer.setVisible(s.visible);
@@ -548,16 +595,25 @@ export function attachReferenceMap(
       addInteraction(modify);
       interactionKeys.push(
         modify.on("modifyend", (e) => {
-          for (const f of e.features.getArray())
-            controller.updateGcp(String(f.getId()), {
-              target: project(
-                (f.getGeometry() as Point).getCoordinates() as XY,
-                mapCrs,
-                s.document.workingCrs,
-                definitions,
-              ),
-              crs: s.document.workingCrs,
-            });
+          try {
+            for (const f of e.features.getArray()) {
+              const workingCrs = controller.getSnapshot().document.workingCrs;
+              controller.updateGcp(String(f.getId()), {
+                target: project(
+                  (f.getGeometry() as Point).getCoordinates() as XY,
+                  mapCrs,
+                  workingCrs,
+                  definitions,
+                ),
+                crs: workingCrs,
+              });
+            }
+          } catch (error) {
+            // Restore the dragged marker to its committed position.
+            oldDoc = null;
+            sync();
+            controller.reportError(error);
+          }
         }),
       );
     } else if (
@@ -694,20 +750,27 @@ export function attachReferenceMap(
     }),
   );
   if (options.initialView)
-    map
-      .getView()
-      .fit(
-        projectExtent(
-          options.initialView.extent,
-          options.initialView.crs,
-          projection,
-          definitions,
-        ),
-      );
-  const history: { center: number[]; resolution: number; rotation: number }[] =
-    [];
-  let historyIndex = -1,
-    restoring = false;
+    try {
+      map
+        .getView()
+        .fit(
+          projectExtent(
+            options.initialView.extent,
+            options.initialView.crs,
+            projection,
+            definitions,
+          ),
+        );
+    } catch (error) {
+      // Attachment has already added owned resources; report instead of leaking them.
+      controller.reportError(error);
+    }
+  const history = new ViewHistory<{
+    center: number[];
+    resolution: number;
+    rotation: number;
+  }>();
+  let restoring = false;
   const remember = () => {
     if (restoring) {
       restoring = false;
@@ -715,21 +778,17 @@ export function attachReferenceMap(
     }
     const v = map.getView();
     if (!v.getCenter() || !v.getResolution()) return;
-    history.splice(historyIndex + 1);
-    history.push({
+    history.record({
       center: [...v.getCenter()!],
       resolution: v.getResolution()!,
       rotation: v.getRotation(),
     });
-    if (history.length > 50) history.shift();
-    historyIndex = history.length - 1;
   };
   remember();
   keys.push(map.on("moveend", remember));
   keys.push(
     map.on("change:view", () => {
-      history.length = 0;
-      historyIndex = -1;
+      history.clear();
       restoring = false;
       remember();
     }),
@@ -766,11 +825,9 @@ export function attachReferenceMap(
      * replaces the view.
      */
     navigateHistory(direction: -1 | 1) {
-      const index = historyIndex + direction,
-        h = history[index];
+      const h = history.step(direction);
       if (!h) return;
       restoring = true;
-      historyIndex = index;
       const v = map.getView();
       v.setCenter(h.center);
       v.setResolution(h.resolution);
@@ -801,7 +858,7 @@ export function attachReferenceMap(
         fn();
       });
       clearInteractions();
-      previewLayer.getSource()?.dispose();
+      releasePreview();
       for (const layer of [...owned, ...ownedReferences]) {
         map.removeLayer(layer);
         const source = layer.getSource();

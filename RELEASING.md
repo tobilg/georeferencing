@@ -25,8 +25,9 @@ never published.
 ## Versioning
 
 `@georeferencing/core`, `@georeferencing/plugins` and `@georeferencing/react`
-always share one version. Plugins and React depend on core with a caret range on
-that version, and users are told to install matching versions.
+always share one version. Plugins and React declare core as a peer dependency with a
+caret range on that version (packed from `workspace:^`), so applications always install
+exactly one core; users are told to install matching versions.
 
 The npm dist-tag follows the version: `1.2.3` publishes as `latest`, and
 `1.2.3-beta.4` publishes as `beta` (likewise `alpha`, `rc`, …), so prereleases

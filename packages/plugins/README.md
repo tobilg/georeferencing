@@ -20,9 +20,10 @@ pnpm add @georeferencing/react react@19 react-dom@19 ol@10
 The package ships ESM, TypeScript declarations and codec-worker assets. Node.js
 22.12+ is the declared tooling requirement; repository development uses pnpm 12.x.
 **Install the same version of `@georeferencing/plugins`, `@georeferencing/core`
-and (if used) `@georeferencing/react`**, and upgrade them together. Plugins depend
-on core; a mismatched version can install a second copy of core whose projection
-registry and worker code are separate from the controller's. See
+and (if used) `@georeferencing/react`**, and upgrade them together. Plugins declare
+core as a peer dependency and use your application's copy; a mismatched version is
+reported as a peer-dependency conflict rather than installing a second core whose
+projection registry and worker code are separate from the controller's. See
 [keep package versions aligned](https://georeferencing-api-docs.gh.tobilg.com/Getting_started/#keep-package-versions-aligned).
 
 Core alone enables no exports. Import only the factories your application uses.
@@ -80,7 +81,7 @@ its host-owned engine when the session is permanently finished.
 | `geoTiff()` | `/geotiff` | `geotiff` | Georeferenced TIFF; valid fit |
 | `jpeg()` | `/jpeg` | `jpeg` | JPEG, `.jgw`, `.crs.json`; valid fit |
 | `pdf()` | `/pdf` | `pdf` | PDF alignment/map report; valid fit and preview |
-| `worldFile()` | `/data` | `world-file` | Original-resolution normalized PNG, `.pgw`, CRS sidecar; Linear/Helmert without reprojection |
+| `worldFile()` | `/data` | `world-file` | Original-resolution normalized PNG, `.pgw`, CRS sidecar; Linear/Helmert (or also affine with `{ affine: true }`) without reprojection |
 | `session()` | `/data` | `session` | Complete session JSON; fit may be unfinished |
 | `points(definitions?)` | `/data` | `points` | QGIS `.points`; fit may be unfinished |
 | `accuracy()` | `/data` | `accuracy` | Full-precision JSON diagnostics; valid fit |
@@ -188,7 +189,9 @@ partial alpha; choose a value that does not collide with valid RGB data. Deflate
 requires browser CompressionStream support.
 
 This encoder writes classic TIFF below 4 GiB and requires an EPSG code below
-32767. BigTIFF, COG layout, arbitrary-WKT GeoKeys, scientific sample preservation
+32767; EPSG URI/URN aliases are accepted (`geoTiffEpsg` from `/tiff` resolves them).
+The `geoTiff()` format reports an ineligible output CRS or TIFF option before any
+rendering starts. BigTIFF, COG layout, arbitrary-WKT GeoKeys, scientific sample preservation
 and multipage output are outside the supported envelope. See the
 [capabilities and limits](https://github.com/tobilg/georeferencing/blob/main/packages/documentation/guides/capabilities.md)
 for the supported output envelope and QGIS compatibility boundaries.

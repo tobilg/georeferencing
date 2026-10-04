@@ -1,7 +1,8 @@
 /**
  * Ready-made editor, composable panels and subscription hook with optional exports.
  * Import from `@georeferencing/react`.
- * @module react
+ * @module @georeferencing/react
+ * @group @georeferencing/react
  */
 
 export type {

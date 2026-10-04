@@ -16,8 +16,10 @@ permissions:
   contents: read
 
 env:
-  # npm trusted publishing requires Node.js 22.14+ and npm 11.5.1+.
+  # npm trusted publishing requires Node.js 22.14+ and npm 11.5.1+. The npm CLI is
+  # pinned so the job that holds the OIDC publish token runs a reviewed version.
   PUBLISH_NODE_VERSION: '24'
+  PUBLISH_NPM_VERSION: '11.6.2'
 
 jobs:
   version:
@@ -99,10 +101,10 @@ jobs:
           node-version: ${{ env.PUBLISH_NODE_VERSION }}
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Update npm
-        run: npm install -g npm@latest && npm --version
+      - name: Install pinned npm
+        run: npm install -g "npm@$PUBLISH_NPM_VERSION" && npm --version
 
-      # Core first: plugins and react depend on it.
+      # Core first: plugins and react declare it as a peer dependency.
       - name: Publish packages
         run: |
           # Unauthenticated registry lookups: 200 = exists, 404 = not published yet.

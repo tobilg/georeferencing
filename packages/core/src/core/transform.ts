@@ -1,6 +1,6 @@
 import { Matrix, SingularValueDecomposition } from "ml-matrix";
 import type { Extent, Gcp, Model, XY } from "./types.js";
-import { DEFAULT_LIMITS, fail, MODELS } from "./types.js";
+import { fail, MAX_GCPS, MODELS } from "./types.js";
 
 /** Translation and uniform scale used to condition the numerical system. */
 export interface Normalization {
@@ -67,8 +67,6 @@ export interface Fit {
   /** Backward-mapping convention used for preview/export and pixel residuals. */
   backward: "reverse-polynomial" | "analytic-or-newton";
 }
-const dot = (a: number[], b: number[]) =>
-  a.reduce((s, v, i) => s + v * b[i], 0);
 /**
  * Centre and scale each coordinate space before solving to reduce sensitivity to large
  * CRS offsets.
@@ -145,7 +143,7 @@ function radial(a: XY, b: XY): number {
  * @param gcps - Canonical image coordinates paired with working-CRS target coordinates.
  * @param model - Exact model to fit; no fallback is performed.
  * @returns Coefficients and training residuals for enabled points.
- * @throws {@link core.GeoreferenceError} For insufficient, duplicate, nonfinite, degenerate or ill-conditioned input.
+ * @throws {@link "@georeferencing/core".GeoreferenceError} For insufficient, duplicate, nonfinite, degenerate or ill-conditioned input.
  */
 export function fitTransform(gcps: Gcp[], model: Model): Fit {
   if (!MODELS[model]) fail("MODEL", "Unknown transformation.");
@@ -155,8 +153,8 @@ export function fitTransform(gcps: Gcp[], model: Model): Fit {
       "COUNT",
       `${MODELS[model].label} requires at least ${MODELS[model].minimum} enabled GCPs.`,
     );
-  if (points.length > DEFAULT_LIMITS.maxGcps)
-    fail("BUDGET", "At most 128 enabled GCPs are supported.");
+  if (points.length > MAX_GCPS)
+    fail("BUDGET", `At most ${MAX_GCPS} enabled GCPs are supported.`);
   for (let i = 0; i < points.length; i++) {
     if (![...points[i].image, ...points[i].target].every(Number.isFinite))
       fail("COORDINATE", "GCP coordinates must be finite.");
@@ -314,29 +312,118 @@ export function fitTransform(gcps: Gcp[], model: Model): Fit {
   if (!Number.isFinite(f.rmse)) fail("FIT", "Nonfinite transformation.");
   return f;
 }
-function evaluate(f: Fit, p: XY): XY {
+/** Evaluate polynomial coefficients in basis order (1, x, y, x², xy, y², x³, x²y, xy², y³). */
+function polynomial(c: number[], x: number, y: number): number {
+  let v = c[0] + c[1] * x + c[2] * y;
+  if (c.length > 3) v += c[3] * x * x + c[4] * x * y + c[5] * y * y;
+  if (c.length > 6)
+    v +=
+      c[6] * x * x * x + c[7] * x * x * y + c[8] * x * y * y + c[9] * y * y * y;
+  return v;
+}
+/** Partial derivatives of a basis-order polynomial with respect to x and y. */
+function polynomialGradient(c: number[], x: number, y: number): XY {
+  let dx = c[1],
+    dy = c[2];
+  if (c.length > 3) {
+    dx += 2 * c[3] * x + c[4] * y;
+    dy += c[4] * x + 2 * c[5] * y;
+  }
+  if (c.length > 6) {
+    dx += 3 * c[6] * x * x + 2 * c[7] * x * y + c[8] * y * y;
+    dy += c[7] * x * x + 2 * c[8] * x * y + 3 * c[9] * y * y;
+  }
+  return [dx, dy];
+}
+/**
+ * Evaluate the normalized model at `(x, y)`, optionally with its Jacobian. Writes
+ * `[X, Y, ∂X/∂x, ∂X/∂y, ∂Y/∂x, ∂Y/∂y]` into `out` without allocating per call.
+ */
+function evaluate(
+  f: Fit,
+  x: number,
+  y: number,
+  out: Float64Array,
+  jacobian = false,
+): void {
   if (f.model === "projective") {
     const h = f.x,
-      d = h[6] * p[0] + h[7] * p[1] + h[8];
-    return [
-      (h[0] * p[0] + h[1] * p[1] + h[2]) / d,
-      (h[3] * p[0] + h[4] * p[1] + h[5]) / d,
-    ];
+      d = h[6] * x + h[7] * y + h[8];
+    out[0] = (h[0] * x + h[1] * y + h[2]) / d;
+    out[1] = (h[3] * x + h[4] * y + h[5]) / d;
+    if (jacobian) {
+      out[2] = (h[0] - out[0] * h[6]) / d;
+      out[3] = (h[1] - out[0] * h[7]) / d;
+      out[4] = (h[3] - out[1] * h[6]) / d;
+      out[5] = (h[4] - out[1] * h[7]) / d;
+    }
+    return;
   }
-  const b = f.knots
-    ? [...f.knots.map((k) => radial(p, k)), 1, ...p]
-    : basis(p, f.model);
-  return [dot(b, f.x), dot(b, f.y)];
+  if (f.knots) {
+    const k = f.knots,
+      n = k.length,
+      wx = f.x,
+      wy = f.y;
+    let vx = wx[n] + wx[n + 1] * x + wx[n + 2] * y,
+      vy = wy[n] + wy[n + 1] * x + wy[n + 2] * y,
+      xx = wx[n + 1],
+      xy = wx[n + 2],
+      yx = wy[n + 1],
+      yy = wy[n + 2];
+    for (let i = 0; i < n; i++) {
+      const dx = x - k[i][0],
+        dy = y - k[i][1],
+        r2 = dx * dx + dy * dy;
+      if (!r2) continue;
+      const log = Math.log(r2),
+        phi = r2 * log;
+      vx += wx[i] * phi;
+      vy += wy[i] * phi;
+      if (jacobian) {
+        // d(r² log r²) = 2 (log r² + 1) (dx, dy)
+        const g = 2 * (log + 1);
+        xx += wx[i] * g * dx;
+        xy += wx[i] * g * dy;
+        yx += wy[i] * g * dx;
+        yy += wy[i] * g * dy;
+      }
+    }
+    out[0] = vx;
+    out[1] = vy;
+    if (jacobian) {
+      out[2] = xx;
+      out[3] = xy;
+      out[4] = yx;
+      out[5] = yy;
+    }
+    return;
+  }
+  out[0] = polynomial(f.x, x, y);
+  out[1] = polynomial(f.y, x, y);
+  if (jacobian) {
+    const gx = polynomialGradient(f.x, x, y),
+      gy = polynomialGradient(f.y, x, y);
+    out[2] = gx[0];
+    out[3] = gx[1];
+    out[4] = gy[0];
+    out[5] = gy[1];
+  }
 }
 /**
  * Map original-resolution canonical image pixels to the fit's working CRS. Points outside
  * the validated domain may produce nonfinite coordinates.
  */
 export function forward(f: Fit, p: XY): XY {
-  const q = evaluate(f, norm(p, f.source));
+  const out = new Float64Array(6);
+  evaluate(
+    f,
+    (p[0] - f.source.center[0]) / f.source.scale,
+    (p[1] - f.source.center[1]) / f.source.scale,
+    out,
+  );
   return [
-    q[0] * f.target.scale + f.target.center[0],
-    q[1] * f.target.scale + f.target.center[1],
+    out[0] * f.target.scale + f.target.center[0],
+    out[1] * f.target.scale + f.target.center[1],
   ];
 }
 /**
@@ -347,66 +434,61 @@ export function forward(f: Fit, p: XY): XY {
  * @returns Source pixels, or null for a singular, divergent or nonconvergent inverse.
  */
 export function backward(f: Fit, q: XY, exactInverse = false): XY | null {
-  const t = norm(q, f.target);
-  let p: XY = f.seed.length
-    ? [
-        dot(
-          [1, ...t],
-          f.seed.map((r) => r[0]),
-        ),
-        dot(
-          [1, ...t],
-          f.seed.map((r) => r[1]),
-        ),
-      ]
-    : [0, 0];
+  const tx = (q[0] - f.target.center[0]) / f.target.scale,
+    ty = (q[1] - f.target.center[1]) / f.target.scale;
+  let px: number, py: number;
   if (f.reversePolynomial && !exactInverse) {
-    const b = basis(t, f.model);
-    p = [dot(b, f.reversePolynomial.x), dot(b, f.reversePolynomial.y)];
+    px = polynomial(f.reversePolynomial.x, tx, ty);
+    py = polynomial(f.reversePolynomial.y, tx, ty);
   } else if (f.model === "projective") {
     const h = f.x,
-      a = h[0] - t[0] * h[6],
-      b = h[1] - t[0] * h[7],
-      c = h[3] - t[1] * h[6],
-      d = h[4] - t[1] * h[7],
-      u = t[0] * h[8] - h[2],
-      v = t[1] * h[8] - h[5],
+      a = h[0] - tx * h[6],
+      b = h[1] - tx * h[7],
+      c = h[3] - ty * h[6],
+      d = h[4] - ty * h[7],
+      u = tx * h[8] - h[2],
+      v = ty * h[8] - h[5],
       det = a * d - b * c;
     if (Math.abs(det) < 1e-14) return null;
-    p = [(u * d - b * v) / det, (a * v - u * c) / det];
+    px = (u * d - b * v) / det;
+    py = (a * v - u * c) / det;
   } else if (!f.knots && f.x.length === 3) {
     const det = f.x[1] * f.y[2] - f.x[2] * f.y[1];
     if (Math.abs(det) < 1e-14) return null;
-    const u = t[0] - f.x[0],
-      v = t[1] - f.y[0];
-    p = [(u * f.y[2] - f.x[2] * v) / det, (f.x[1] * v - u * f.y[1]) / det];
+    const u = tx - f.x[0],
+      v = ty - f.y[0];
+    px = (u * f.y[2] - f.x[2] * v) / det;
+    py = (f.x[1] * v - u * f.y[1]) / det;
   } else {
+    // Newton iteration with the analytic Jacobian, seeded by the inverse affine fit.
+    const s = f.seed;
+    px = s.length ? s[0][0] + s[1][0] * tx + s[2][0] * ty : 0;
+    py = s.length ? s[0][1] + s[1][1] * tx + s[2][1] * ty : 0;
+    const out = new Float64Array(6);
     let converged = false;
     for (let i = 0; i < 30; i++) {
-      const v = evaluate(f, p),
-        rx = v[0] - t[0],
-        ry = v[1] - t[1];
+      evaluate(f, px, py, out, true);
+      const rx = out[0] - tx,
+        ry = out[1] - ty;
       if (Math.hypot(rx, ry) < 1e-10) {
         converged = true;
         break;
       }
-      const eps = 1e-5,
-        px = evaluate(f, [p[0] + eps, p[1]]),
-        py = evaluate(f, [p[0], p[1] + eps]);
-      const a = (px[0] - v[0]) / eps,
-        b = (py[0] - v[0]) / eps,
-        c = (px[1] - v[1]) / eps,
-        d = (py[1] - v[1]) / eps,
+      const a = out[2],
+        b = out[3],
+        c = out[4],
+        d = out[5],
         det = a * d - b * c;
       if (!Number.isFinite(det) || Math.abs(det) < 1e-12) return null;
-      p = [p[0] - (d * rx - b * ry) / det, p[1] - (a * ry - c * rx) / det];
-      if (Math.hypot(...p) > 1e6) return null;
+      px -= (d * rx - b * ry) / det;
+      py -= (a * ry - c * rx) / det;
+      if (Math.hypot(px, py) > 1e6) return null;
     }
     if (!converged) return null;
   }
   return [
-    p[0] * f.source.scale + f.source.center[0],
-    p[1] * f.source.scale + f.source.center[1],
+    px * f.source.scale + f.source.center[0],
+    py * f.source.scale + f.source.center[1],
   ];
 }
 
@@ -417,7 +499,7 @@ export function backward(f: Fit, q: XY, exactInverse = false): XY | null {
  * @param f - Fit to validate.
  * @param width - Canonical image width in original pixels.
  * @param height - Canonical image height in original pixels.
- * @throws {@link core.GeoreferenceError} When the sampled domain is unsafe.
+ * @throws {@link "@georeferencing/core".GeoreferenceError} When the sampled domain is unsafe.
  */
 export function validateDomain(f: Fit, width: number, height: number): Extent {
   let sign = 0;

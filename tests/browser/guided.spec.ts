@@ -98,6 +98,8 @@ test("GCP-01/FIT-02: Hamburg manual matching → run → edit → rerun → expo
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
+  let loads = 0;
+  page.on("load", () => loads++);
   const tileResponse = page.waitForResponse(osmTiles);
   await load(page);
   expect((await tileResponse).ok()).toBe(true);
@@ -185,6 +187,17 @@ test("GCP-01/FIT-02: Hamburg manual matching → run → edit → rerun → expo
   expect(raster.getGeoKeys()?.ProjectedCSTypeGeoKey).toBe(3857);
   expect(raster.getBoundingBox()[0]).toBeGreaterThan(1_100_000);
   expect(raster.getWidth()).toBeGreaterThan(100);
+  // The first PDF export lazily loads pdf-lib. A cold dev server must not reload the
+  // page for it, which would discard the whole editor session.
+  const report = page.waitForEvent("download");
+  await page.locator('[data-export-format="pdf"]').click();
+  expect((await report).suggestedFilename()).toBe("alignment-map-report.pdf");
+  expect(loads).toBe(1);
+  expect(
+    await page.evaluate(
+      () => window.demo.controller.getSnapshot().document.gcps.length,
+    ),
+  ).toBe(3);
   await page.getByRole("button", { name: "Point", exact: true }).click();
   await mapPoint(page, [1111490.328, 7083748.046]);
   await expect
@@ -430,4 +443,31 @@ test("NAV-01: both views pan by dragging and zoom by wheel without page scroll",
     .poll(async () => (await state()).center[0])
     .toBeLessThan(mapZoomed.center[0]);
   expect((await state()).scrollY).toBe(before.scrollY);
+});
+test("NAV-02: zooming beyond the preview resolution shows the full-resolution image", async ({
+  page,
+}) => {
+  await load(page);
+  const detail = page.locator("svg.rg-image-view image[data-detail]");
+  const detailUrl = () =>
+    page.evaluate(() => window.demo.controller.getSnapshot().detailImageUrl);
+  await expect(detail).toHaveCount(0);
+  expect(await detailUrl()).toBeNull();
+  const image = (await page.locator("svg.rg-image-view").boundingBox())!;
+  await page.mouse.move(image.x + image.width / 2, image.y + image.height / 2);
+  for (let i = 0; i < 12; i++) await page.mouse.wheel(0, -300);
+  await expect(detail).toHaveCount(1);
+  expect(await detailUrl()).toMatch(/^blob:/);
+  // The 1240 px WebP is unrotated: it is displayed directly, without a worker job.
+  const size = await detail.evaluate(
+    (element) =>
+      new Promise<number[]>((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve([img.naturalWidth, img.naturalHeight]);
+        img.src = element.getAttribute("href")!;
+      }),
+  );
+  expect(size).toEqual([1240, 697]);
+  await page.getByRole("button", { name: "Fit image" }).click();
+  await expect(detail).toHaveCount(0);
 });

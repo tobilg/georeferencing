@@ -129,6 +129,7 @@ function App() {
         <Georeferencer
           controller={controller}
           referenceMap={map}
+          controls={{ transformation: true }}
           emptyImageActions={
             <button
               type="button"

@@ -205,3 +205,116 @@ it("OUT-05 strip compression, predictor and numeric no-data independently decode
     }),
   ).rejects.toThrow(/partial transparency/i);
 });
+it("approximate transformer stays within its tolerance and 0 maps exactly", () => {
+  const size = 64,
+    input = {
+      width: size,
+      height: size,
+      data: new Uint8ClampedArray(size * size * 4),
+    };
+  // Horizontal gradient: a source x error of e pixels changes bilinear output by ~4e.
+  for (let i = 0; i < size * size; i++) {
+    input.data.set([(i % size) * 4, 0, 0, 255], i * 4);
+  }
+  const meta = { ...metadata, width: size, height: size };
+  const fit = fitTransform(
+    fixture("thinPlateSpline").map((p) => ({
+      ...p,
+      image: [(p.image[0] * size) / 100, (p.image[1] * size) / 100],
+    })),
+    "thinPlateSpline",
+  );
+  const grid = outputGrid(
+    fit,
+    meta,
+    "EPSG:3857",
+    { crs: "EPSG:3857", resampler: "bilinear" },
+    DEFAULT_LIMITS,
+  );
+  const exact = warp(
+    input,
+    meta,
+    fit,
+    "EPSG:3857",
+    grid,
+    "bilinear",
+    {},
+    undefined,
+    0,
+  );
+  const fast = warp(
+    input,
+    meta,
+    fit,
+    "EPSG:3857",
+    grid,
+    "bilinear",
+    {},
+    undefined,
+    0.125,
+  );
+  const tight = warp(input, meta, fit, "EPSG:3857", grid, "bilinear");
+  // Compare interior pixels; edge pixels may move across the image border.
+  let fastMax = 0,
+    tightMax = 0,
+    edges = 0;
+  for (let i = 0; i < exact.data.length; i += 4) {
+    const inside =
+      exact.data[i + 3] === 255 &&
+      fast.data[i + 3] === 255 &&
+      tight.data[i + 3] === 255;
+    if (!inside) {
+      if (exact.data[i + 3] !== fast.data[i + 3]) edges++;
+      continue;
+    }
+    fastMax = Math.max(fastMax, Math.abs(fast.data[i] - exact.data[i]));
+    tightMax = Math.max(tightMax, Math.abs(tight.data[i] - exact.data[i]));
+  }
+  expect(fastMax).toBeLessThanOrEqual(Math.ceil(4 * 0.125) + 1);
+  expect(tightMax).toBeLessThanOrEqual(1);
+  expect(edges).toBeLessThan(grid.width + grid.height);
+  expect(() =>
+    outputGrid(
+      fit,
+      meta,
+      "EPSG:3857",
+      { crs: "EPSG:3857", resampler: "bilinear", approximationError: 2 },
+      DEFAULT_LIMITS,
+    ),
+  ).toThrow(/Approximation error/);
+});
+it("GeoTIFF eligibility is known before rendering and accepts EPSG URN aliases", async () => {
+  const { geoTiff } = await import("../packages/plugins/src/geotiff.js");
+  const { geoTiffEpsg } = await import("../packages/plugins/src/tiff.js");
+  const format = geoTiff();
+  const doc = (
+    output: Partial<
+      import("../packages/core/src/core/types.js").OutputSettings
+    >,
+  ) =>
+    ({
+      output: { crs: "EPSG:3857", resampler: "bilinear", ...output },
+    }) as never;
+  expect(format.unavailable?.(doc({}), null)).toBeNull();
+  expect(format.unavailable?.(doc({ crs: "ESRI:102100" }), null)).toMatch(
+    /EPSG/,
+  );
+  expect(format.unavailable?.(doc({ crs: "EPSG:900913" }), null)).toMatch(
+    /32767/,
+  );
+  expect(format.unavailable?.(doc({ predictor: 2 }), null)).toMatch(/Deflate/);
+  expect(geoTiffEpsg("urn:ogc:def:crs:EPSG::25832")).toBe(25832);
+  const tiff = await fromArrayBuffer(
+    await encodeGeoTiffOutput(
+      new Uint8ClampedArray(4).fill(255),
+      1,
+      1,
+      [0, 0, 1, 1],
+      "http://www.opengis.net/def/crs/EPSG/0/25832",
+      false,
+    ),
+  );
+  expect((await tiff.getImage()).getGeoKeys()?.ProjectedCSTypeGeoKey).toBe(
+    25832,
+  );
+});

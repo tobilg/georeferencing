@@ -1,4 +1,5 @@
 ---
+group: Guides
 title: Coordinates and raster output
 ---
 
@@ -37,15 +38,29 @@ Count alone does not establish validity. Duplicate pairs, deficient rank, poor c
 
 For each enabled GCP, forward residual is `T(image) - target`, and RMSE is `sqrt(sum(distance²) / enabledCount)` in working-CRS units. Pixel residual is the distance from the backward-mapped target to the original source point. Polynomial backward mapping uses a separately fitted reverse polynomial to follow GDAL/QGIS raster behavior; it is generally not the exact inverse of the forward polynomial. Preview and export share this convention. Training residuals do not establish independent positional accuracy.
 
+## Source pixel values
+
+Decoding keeps encoded sample values: embedded ICC profiles and gamma are not applied, matching GDAL. Browser canvases store premultiplied alpha, so color values of partially transparent PNG/WebP pixels can be rounded; opaque and fully transparent pixels are exact, and TIFF input is decoded without a canvas.
+
 ## Export and interchange
 
 With `geoTiff()` registered in `exports`, `controller.exportRaster()` returns the GeoTIFF Blob, raster metadata/pixels and exact document snapshot used for processing. It returns null for cancellation, stale results or reported processing failures. Invalid fits and concurrent exports reject before starting. `onExport` on the ready-made editor replaces its default download with a host callback.
 
-GeoTIFF output is north-up, 8-bit RGB with numeric no-data or RGBA with unassociated alpha, using PixelIsArea. Bounds describe outer pixel edges; row zero is at maxY. Supported codecs are uncompressed, Deflate and PackBits. Predictor 2 requires Deflate. Numeric no-data cannot preserve partial transparency. Classic TIFF is limited to below 4 GiB and this encoder requires an EPSG code below 32767; arbitrary WKT GeoKeys and BigTIFF are not implemented.
+GeoTIFF output is north-up, 8-bit RGB with numeric no-data or RGBA with unassociated alpha, using PixelIsArea. Bounds describe outer pixel edges; row zero is at maxY. Supported codecs are uncompressed, Deflate and PackBits. Predictor 2 requires Deflate. Numeric no-data cannot preserve partial transparency. Classic TIFF is limited to below 4 GiB and this encoder requires an EPSG code below 32767 (EPSG URI/URN aliases such as `urn:ogc:def:crs:EPSG::25832` are accepted); arbitrary WKT GeoKeys and BigTIFF are not implemented. The GeoTIFF format reports an ineligible output CRS or TIFF option through `getExportUnavailable("geotiff")` before any rendering starts.
 
 Resolution is a positive x/y pixel size in output-CRS units. Without an explicit value, the engine estimates pixel area at the transformed image centre. Bounds default to sampled/adaptively subdivided transformed image bounds. Right/bottom edges may expand to fit whole pixels. Pixel and estimated-memory budgets apply before output allocation.
 
-With the `worldFile()` plugin registered, `exportWorldFile()` is eligible for Linear/Helmert without reprojection. It returns an orientation-normalized full-resolution PNG, six-line world file and explicit CRS. The last two world-file values locate the first pixel centre; the file itself carries no CRS.
+### Approximate transformer
+
+Thin plate spline inverses (Newton iterations over every control point) and reprojected outputs (a proj4 conversion per pixel) are the expensive parts of a warp. For these cases the warper computes exact source positions at a few columns per row and linearly interpolates between them wherever the error at the segment midpoint is within `output.approximationError` source pixels, like the GDAL approximate transformer. Other models are always mapped exactly.
+
+| `approximationError` | Use |
+| --- | --- |
+| `0` | Map every output pixel exactly. |
+| `0.0001` (default) | Reproduces the pinned QGIS/GDAL raster fixtures; several times faster for TPS. |
+| `0.125` | GDAL warper default; TPS exports are typically more than 20× faster than exact mapping. Previews always use this value. |
+
+With the `worldFile()` plugin registered, `exportWorldFile()` is eligible for Linear/Helmert without reprojection; `worldFile({ affine: true })` also accepts Polynomial 1 (affine) fits, which a world file represents exactly including rotation and shear (QGIS offers world files only for Linear/Helmert). It returns an orientation-normalized full-resolution PNG, six-line world file and explicit CRS. The last two world-file values locate the first pixel centre; the file itself carries no CRS.
 
 `exportPoints` from `@georeferencing/plugins/serializers` and `importPoints` from `@georeferencing/core` round-trip QGIS `.points` coordinates and enabled state. QGIS's source y is negated to/from canonical y-down pixels. `.points` does not preserve IDs or provenance and exported residual columns are zero placeholders; use `accuracyReport` from the same serializers entry point for actual diagnostics and JSON sessions for full state.
 
