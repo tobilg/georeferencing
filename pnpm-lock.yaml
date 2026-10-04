@@ -63,13 +63,13 @@ importers:
   packages/core:
     dependencies:
       '@types/geojson':
-        specifier: 7946.0.16
+        specifier: ^7946.0.16
         version: 7946.0.16
       ml-matrix:
-        specifier: 6.12.1
+        specifier: ^6.12.1
         version: 6.12.1
       proj4:
-        specifier: 2.22.0
+        specifier: ^2.22.0
         version: 2.22.0(geotiff@3.0.5)
     devDependencies:
       '@types/node':
@@ -164,7 +164,7 @@ importers:
         specifier: workspace:^
         version: link:../core
       pdf-lib:
-        specifier: 1.17.1
+        specifier: ^1.17.1
         version: 1.17.1
     devDependencies:
       typescript:

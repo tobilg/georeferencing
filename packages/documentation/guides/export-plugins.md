@@ -38,21 +38,9 @@ JPEG shares the full-resolution warp and output grid with GeoTIFF, then composit
 
 PDF uses the current aligned preview for a local report, not a geospatial PDF raster. `pdf({ map: () => hostMap })` resolves the host map at export time. Other options include paper, margins and attribution. Host-map capture uses currently loaded CORS-safe canvas layers; omit `map` for an aligned-raster report. pdf-lib loads only on demand. Import low-level `createPdfReport` from `@georeferencing/plugins/report` when managing the report lifecycle yourself.
 
-## Migration from the combined core package
+## Convenience aliases
 
-| Previous import/API | Replacement |
-| --- | --- |
-| React components from core root or `@georeferencing/core/react` | `@georeferencing/react` |
-| `@georeferencing/core/styles.css` | `@georeferencing/react/styles.css` |
-| Headless `/core` entry | Core root; `/core` remains an alias |
-| TIFF encoder from `/engine` | `@georeferencing/plugins/tiff` |
-| PDF report from React | `@georeferencing/plugins/report` |
-| Implicit raster/report/download buttons | Explicit `exports: [...]` |
-| `reportOptions` React prop | `pdf({...})` options |
-| `onWorldFileExport` React prop | Unified `onExport`, switch on `result.format` |
-| `engine.run({kind: "render", ...})` returning a TIFF Blob | Render returns RGBA; use a registered raster plugin to encode it |
-
-`exportRaster()` remains a convenience alias for `export("geotiff")`; `exportWorldFile()` aliases `export("world-file")`. Both require their plugins. The document schema, coordinate conventions and save semantics are unchanged. Low-level core interchange functions remain available for serialization and custom integrations.
+`exportRaster()` is a convenience alias for `export("geotiff")`; `exportWorldFile()` aliases `export("world-file")`. Both require their plugins. Low-level core interchange functions are available for serialization and custom integrations.
 
 See [worker deployment](./workers-and-deployment.md) for encoder asset overrides and license requirements.
 

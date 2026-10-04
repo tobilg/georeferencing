@@ -28,10 +28,14 @@ Browser processing requires module workers, File/Blob, OffscreenCanvas and Web
 Crypto in a secure context. Importing the package and constructing an engine are
 SSR-safe; start image processing on the client.
 
-Repository development uses **pnpm 12.x**, without a minor/patch pin. Registry
-commands above apply to a published release. For unpublished local packages, use
-`pnpm pack:packages` and follow the
-[local tarball installation instructions](https://github.com/tobilg/georeferencing/blob/main/packages/documentation/guides/getting-started.md#install-unpublished-local-tarballs).
+`@georeferencing/core`, `@georeferencing/plugins` and `@georeferencing/react` are
+released together. **Install the same version of every `@georeferencing/*` package**
+and upgrade them together. Plugins and React depend on core; mismatched versions
+can install a second copy of core with its own proj4 projection registry, so
+projections registered through one copy are invisible to the other. See
+[keep package versions aligned](https://georeferencing-api-docs.gh.tobilg.com/Getting_started/#keep-package-versions-aligned).
+
+API reference and guides: **[georeferencing-api-docs.gh.tobilg.com](https://georeferencing-api-docs.gh.tobilg.com)**.
 
 ## Public entry points
 
@@ -356,24 +360,7 @@ TIFF with supported compression. All eight JPEG/PNG/WebP EXIF orientations are n
 Unsupported scientific sample types, multipage layouts and geographic domains fail
 explicitly. Existing GeoTIFF placement is a hint, not an accepted alignment.
 
-## Development, troubleshooting and license
-
-Run these commands from the repository root:
-
-```sh
-pnpm install --frozen-lockfile
-pnpm build:core
-pnpm typecheck
-pnpm test
-pnpm lint
-pnpm docs:build
-pnpm pack:core
-```
-
-`pnpm dev` watches all public packages with the demo. `pack:core` creates a local
-tarball under `artifacts/`; it does not publish. The
-[release guide](https://github.com/tobilg/georeferencing/blob/main/RELEASING.md)
-describes package-content checks and reproducible verification commands.
+## Troubleshooting and license
 
 | Symptom | Check |
 | --- | --- |
@@ -386,5 +373,6 @@ describes package-content checks and reproducible verification commands.
 
 MIT licensed. Bundled third-party notices are included under `dist/licenses`;
 retain them when redistributing worker assets. Public TypeDoc comments ship in
-`.d.ts` files and feed the shared
-[documentation workspace](https://github.com/tobilg/georeferencing/tree/main/packages/documentation).
+`.d.ts` files for editor help and are published as the
+[API documentation](https://georeferencing-api-docs.gh.tobilg.com). Source, issues and contribution notes are in the
+[GitHub repository](https://github.com/tobilg/georeferencing).

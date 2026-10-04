@@ -25,8 +25,8 @@ feature persistence does not require raster export. Processing runs in browser
 workers. Reference requests and explicit host save callbacks may use the network;
 image fitting, warping and encoding require no raster backend.
 
-This alpha has a bounded ordinary-image workload. The
-[capabilities and limits](https://github.com/tobilg/georeferencing/blob/main/packages/documentation/guides/capabilities.md)
+The packages support a bounded ordinary-image workload. The
+[capabilities and limits](./guides/capabilities.md)
 describes supported models, coordinate conventions and deliberate limits.
 The [release guide](https://github.com/tobilg/georeferencing/blob/main/RELEASING.md)
 explains package contents and release checks.
@@ -38,8 +38,8 @@ For an end-to-end host application, begin with the [integration guide](./guides/
 | Guide | What it covers |
 | --- | --- |
 | [Capabilities and limits](./guides/capabilities.md) | Models, formats, resource budgets and integration boundaries |
-| [Getting started](./guides/getting-started.md) | Installation, a typed host-map integration, composable UI and unpublished tarballs |
-| [Optional export plugins](./guides/export-plugins.md) | Format configuration, results, custom exporters and migration from the combined core package |
+| [Getting started](./guides/getting-started.md) | Installation, version alignment, a typed host-map integration and composable UI |
+| [Optional export plugins](./guides/export-plugins.md) | Format configuration, results and custom exporters |
 | [Coordinates and raster output](./guides/coordinates-and-output.md) | Pixel conventions, CRS spaces, models, residual formulas, resampling and output limits |
 | [Reference data](./guides/reference-data.md) | WFS axes/paging/authentication, borrowed layers, custom loaders, snapping and incomplete results |
 | [Lifecycle and saving](./guides/lifecycle-and-saving.md) | Image replacement, guards, confirmation, review, immutable saves and resource ownership |
@@ -120,8 +120,8 @@ provides static navigation, search and light/dark presentation.
 The configured source entries cover core's headless, engine, encoder protocol and
 OpenLayers APIs; React's editor/panels; and the plugin root, format factories,
 TIFF encoder, pure serializers and PDF report APIs. Private/protected/internal/external symbols are
-excluded. Source links point at the repository's `main` branch; unpublished local
-changes can precede those remote source files.
+excluded. Source links point at the repository's `main` branch. The published site is
+deployed from each release tag.
 
 TypeDoc currently uses the built-in HTML theme and `structure-dir` routing.
 Do not edit generated HTML. Edit source comments, this README or the guides, then
@@ -171,8 +171,10 @@ exercises guide code, navigation and search. It writes a local result artifact t
 `pnpm docs:build` emits `packages/documentation/dist`. Deploy the complete output
 directory, including assets/search data, with a static server that resolves
 folder URLs to `index.html`. Internal links/assets are relative, so a non-root
-base such as `/api/` is supported. A site build or preview does not deploy it;
-there is no automatic production publishing workflow in this package.
+base such as `/api/` is supported. Local builds and previews do not deploy. The
+[release workflow](https://github.com/tobilg/georeferencing/blob/main/RELEASING.md)
+deploys the site built by CI to [georeferencing-api-docs.gh.tobilg.com](https://georeferencing-api-docs.gh.tobilg.com)
+for every release tag.
 
 ## Troubleshooting and license
 

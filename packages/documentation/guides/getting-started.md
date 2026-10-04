@@ -10,7 +10,7 @@ Install the library and its host-owned peers in your React application:
 pnpm add @georeferencing/core @georeferencing/react @georeferencing/plugins react@19 react-dom@19 ol@10
 ```
 
-The verified peer ranges are React/React DOM `>=19.3.0 <20` and OpenLayers `>=10.10.0 <11`. Before registry publication, install the local tarballs produced by `pnpm pack:packages` instead. The repository requires pnpm 12; consuming applications may use their own package manager.
+npm and Yarn work the same way (`npm install …`, `yarn add …`). The verified peer ranges are React/React DOM `>=19.3.0 <20` and OpenLayers `>=10.10.0 <11`. Install the same version of all `@georeferencing/*` packages; see [keep package versions aligned](#keep-package-versions-aligned).
 
 Core and React require no export plugins. The example opts into three formats; omit `exports` and the plugins dependency for alignment and saving alone. See [optional export plugins](./export-plugins.md).
 
@@ -34,23 +34,26 @@ Pass `t(message)` to translate default English UI text. The ready-made editor al
 
 See [lifecycle and saving](./lifecycle-and-saving.md) before integrating persistence, and [worker deployment](./workers-and-deployment.md) before building your production bundle.
 
-## Install unpublished local tarballs
+## Keep package versions aligned
 
-`pnpm pack:packages` creates `georeferencing-core-0.1.0-alpha.2.tgz`,
-`georeferencing-plugins-0.1.0-alpha.2.tgz` and
-`georeferencing-react-0.1.0-alpha.2.tgz` in `artifacts/`.
-Before adding those files to a separate pnpm consumer, configure its
-`pnpm-workspace.yaml` so transitive core dependencies use the unpublished tarball:
+`@georeferencing/core`, `@georeferencing/plugins` and `@georeferencing/react` are
+released together with identical version numbers. Always install the **same
+version** of every `@georeferencing/*` package your application uses, and upgrade
+them together:
 
-```yaml
-overrides:
-  '@georeferencing/core': file:/absolute/path/artifacts/georeferencing-core-0.1.0-alpha.2.tgz
+```sh
+# Replace <version> with one release number, for example when upgrading:
+pnpm add @georeferencing/core@<version> @georeferencing/plugins@<version> @georeferencing/react@<version>
 ```
 
-Then add the selected tarball paths plus any UI peers. The override is only for
-unpublished local testing; normal registry installation uses the declared core
-version range. The clean-consumer script exercises this exact path with pnpm 12,
-whose settings are configured in [pnpm-workspace.yaml](https://pnpm.io/settings).
+Plugins and React declare core as a regular dependency. When the versions differ,
+your package manager can install a second copy of core, which then also bundles
+its own proj4 projection registry. The host's controller, map binding and export
+plugins would no longer share registered projections or datum grids, and the
+application ships the processing code twice. Check for a single copy with
+`pnpm why @georeferencing/core` (or `npm ls @georeferencing/core`); a pnpm
+`overrides` entry or npm `overrides` field can force one version if a transitive
+dependency pulls in another.
 
 ## Guided matching and explicit preview
 

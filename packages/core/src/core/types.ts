@@ -258,7 +258,7 @@ export const DEFAULT_LIMITS: Limits = {
 /**
  * Processing implementation identifier included in save envelopes and accuracy reports.
  */
-export const ENGINE_VERSION = "js-warp/0.1.0-alpha.2";
+export const ENGINE_VERSION = "js-warp/0.1.0";
 /**
  * Display labels and minimum enabled GCP counts. Meeting the count alone does not
  * guarantee rank, conditioning or a valid warp domain.

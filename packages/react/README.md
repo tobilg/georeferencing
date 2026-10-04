@@ -27,9 +27,13 @@ TypeDoc-bearing TypeScript declarations. Node.js 22.12+ is the declared tooling
 requirement; the repository uses pnpm 12.x.
 
 Importing the package is SSR-safe. Create maps and start browser processing only
-on the client. Before registry publication, use matching local tarballs from
-`pnpm pack:packages` with the
-[local installation guide](https://github.com/tobilg/georeferencing/blob/main/packages/documentation/guides/getting-started.md#install-unpublished-local-tarballs).
+on the client.
+
+**Install the same version of `@georeferencing/react`, `@georeferencing/core` and
+`@georeferencing/plugins`**, and upgrade them together. React depends on core and
+re-exports its controller; a mismatched version can install a second copy of core
+with a separate projection registry. See
+[keep package versions aligned](https://georeferencing-api-docs.gh.tobilg.com/Getting_started/#keep-package-versions-aligned).
 
 ## Integrate with a host-owned map
 
@@ -327,25 +331,12 @@ in `components/`, and download handling in `utils/`. Translation types/defaults
 live in `localization.ts`. These internal modules preserve the public API; consumers
 continue importing from `@georeferencing/react` and its `styles.css` entry.
 
-## Development, troubleshooting and license
+## Troubleshooting and license
 
-From the repository root:
-
-```sh
-pnpm install --frozen-lockfile
-pnpm dev
-pnpm typecheck
-pnpm lint
-pnpm test:browser
-pnpm docs:build
-pnpm pack:react
-```
-
-`@georeferencing/react` exposes `.` and `/styles.css`. Builds preserve TypeDoc in
-`.d.ts` files; the shared
-[documentation workspace](https://github.com/tobilg/georeferencing/tree/main/packages/documentation)
-sources its API alongside core and plugins. `pack:react` writes a local tarball,
-without publishing. MIT licensed.
+`@georeferencing/react` exposes `.` and `/styles.css`. Declarations carry TypeDoc
+comments for editor help; the same comments are published as the
+[API documentation](https://georeferencing-api-docs.gh.tobilg.com). Source, issues and contribution notes are in the
+[GitHub repository](https://github.com/tobilg/georeferencing). MIT licensed.
 
 | Symptom | Check |
 | --- | --- |
@@ -355,7 +346,3 @@ without publishing. MIT licensed.
 | Drawing/save controls unavailable | Opt-in digitizing, valid confirmation, feature review and configured save handler |
 | Export controls absent | Register the desired optional plugins |
 | Worker or map-capture error | Worker URLs/CSP, supported browser APIs and CORS-safe map layers |
-
-Migrating from the combined package: import components from `@georeferencing/react`
-and CSS from `@georeferencing/react/styles.css`. Replace `reportOptions` with PDF
-plugin configuration and `onWorldFileExport` with the unified `onExport` callback.

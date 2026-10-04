@@ -30,7 +30,8 @@
     "pack:react": "pnpm --filter @georeferencing/react pack --pack-destination artifacts",
     "pack:packages": "pnpm build:packages && pnpm pack:core && pnpm pack:plugins && pnpm pack:react",
     "release:check": "pnpm pack:packages && node scripts/check-package-contents.mjs",
-    "dev:harness": "vite --config tests/browser/harness/vite.config.ts"
+    "dev:harness": "vite --config tests/browser/harness/vite.config.ts",
+    "version:set": "node scripts/set-version.mjs"
   },
   "devDependencies": {
     "@georeferencing/core": "workspace:*",

@@ -1,6 +1,6 @@
 {
   "name": "@georeferencing/core",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0",
   "description": "Headless browser georeferencing state, transforms, image processing and OpenLayers integration",
   "license": "MIT",
   "type": "module",
@@ -42,9 +42,9 @@
     "ol": ">=10.10.0 <11"
   },
   "dependencies": {
-    "@types/geojson": "7946.0.16",
-    "ml-matrix": "6.12.1",
-    "proj4": "2.22.0"
+    "@types/geojson": "^7946.0.16",
+    "ml-matrix": "^6.12.1",
+    "proj4": "^2.22.0"
   },
   "devDependencies": {
     "@types/node": "22.19.15",

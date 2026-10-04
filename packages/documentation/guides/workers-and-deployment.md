@@ -39,26 +39,11 @@ Preview decodes are reduced; original bytes remain available for final export. O
 
 Each operation has its own worker. Abort terminates that worker or removes queued work before allocation. `createJobScheduler(1)` can be shared across engines to bound total concurrent workers; pass it as the `scheduler` option. Do not acquire a scheduler slot manually around an engine already using that scheduler.
 
-## Building this workspace
+## Package contents
 
-```sh
-pnpm install --frozen-lockfile
-pnpm typecheck
-pnpm lint
-pnpm test
-pnpm build
-pnpm test:docs
-pnpm pack:packages
-pnpm test:consumer
-```
+Each package ships ESM, TypeScript declarations with the full API documentation, and third-party notices under `dist/licenses`. CSS ships only with `@georeferencing/react`, encoder workers with `@georeferencing/plugins`, and input processing with `@georeferencing/core`. Install the same version of all three packages; see [keep package versions aligned](./getting-started.md#keep-package-versions-aligned).
 
-`@georeferencing/core`, `@georeferencing/plugins` and `@georeferencing/react` are public packages. Demo and documentation are private. `pack:packages` writes all three tarballs to `artifacts/`, retaining declarations with TypeDoc and the relevant assets/licenses. CSS ships only with React, encoders with plugins, and input processing with core. Website tooling is private development infrastructure, not a runtime dependency.
-
-`pnpm docs:dev` builds the TypeDoc website, watches all three packages' comments and guides, and serves it at `http://127.0.0.1:4174`. `pnpm docs:build` emits static HTML/search assets to `packages/documentation/dist`; `pnpm docs:preview` serves that existing output. The website uses relative internal links/assets and can be hosted beneath a path such as `/api/`. Serve directory URLs with their `index.html` files. No deployment is performed by these commands.
-
-The documentation build treats missing public documentation and invalid links as errors. The embedded TypeScript examples are compiled by workspace typechecking. The documentation check traverses generated local links and exercises navigation/search in a browser. Before publication, review the [release checklist](https://github.com/tobilg/georeferencing/blob/main/RELEASING.md) and [capabilities and limits](https://github.com/tobilg/georeferencing/blob/main/packages/documentation/guides/capabilities.md), verify package contents, and obtain publication approval separately.
-
-Production worker assets are minified without source maps to keep tarballs small.
-Workspace watch builds emit worker source maps. Published declarations retain all
-public API documentation. PDF's optional map contract is structural, so a headless
+Production worker assets are minified without source maps to keep packages small. PDF's optional map contract is structural, so a headless
 plugins consumer needs no OpenLayers installation.
+
+To build the packages, documentation or demo from source, see the [repository README](https://github.com/tobilg/georeferencing#development).

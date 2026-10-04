@@ -19,9 +19,11 @@ pnpm add @georeferencing/react react@19 react-dom@19 ol@10
 
 The package ships ESM, TypeScript declarations and codec-worker assets. Node.js
 22.12+ is the declared tooling requirement; repository development uses pnpm 12.x.
-Use matching releases of the public packages. For unpublished releases, build
-local tarballs with `pnpm pack:packages` and follow the
-[local installation guide](https://github.com/tobilg/georeferencing/blob/main/packages/documentation/guides/getting-started.md#install-unpublished-local-tarballs).
+**Install the same version of `@georeferencing/plugins`, `@georeferencing/core`
+and (if used) `@georeferencing/react`**, and upgrade them together. Plugins depend
+on core; a mismatched version can install a second copy of core whose projection
+registry and worker code are separate from the controller's. See
+[keep package versions aligned](https://georeferencing-api-docs.gh.tobilg.com/Getting_started/#keep-package-versions-aligned).
 
 Core alone enables no exports. Import only the factories your application uses.
 The root plugin barrel exports factories and types; per-format imports give
@@ -29,7 +31,7 @@ bundlers a narrower dependency graph. Unused formats can be excluded from the
 browser bundle. Installing this package also installs its `pdf-lib` dependency,
 but PDF code is downloaded by the application only when its lazy export path runs.
 
-## Pure serializers and import migration
+## Pure serializers
 
 `@georeferencing/plugins/serializers` exposes `exportPoints(document, definitions?)`,
 `worldFile(fit, workingCrs, outputCrs)` and `accuracyReport(document, fit)` without
@@ -41,10 +43,9 @@ import { importPoints, parseSession } from "@georeferencing/core";
 import { exportPoints, accuracyReport, worldFile } from "@georeferencing/plugins/serializers";
 ```
 
-Earlier workspace builds exported these three serializers from core. This is an
-intentional import-path change: move those imports to `/serializers`. Session
-validation and `.points` importing remain in core. The `worldFile()` factory at
-`@georeferencing/plugins/data` and the plugin root retains its existing API.
+Session validation and `.points` importing live in core. The `worldFile()`
+factory registered from `@georeferencing/plugins/data` (and the plugin root) is a
+separate controller export format.
 
 ## Configure export formats
 
@@ -304,27 +305,7 @@ interfaces. Bypassing the controller makes the caller responsible for matching
 revisions, limits, cancellation and resource cleanup. Custom codec workers can
 use `installEncoderWorker` from `@georeferencing/core/encoder-worker`.
 
-## Migration, development and troubleshooting
-
-React components/CSS now live in `@georeferencing/react`. TIFF encoders moved from
-core's engine entry to `/tiff`; PDF helpers moved from React to `/report`.
-Configure PDF options in `pdf({...})`, replacing the old React `reportOptions`
-prop. Use the unified React `onExport` for every format, including world files.
-See the complete
-[migration guide](https://github.com/tobilg/georeferencing/blob/main/packages/documentation/guides/export-plugins.md#migration-from-the-combined-core-package).
-
-From the repository root:
-
-```sh
-pnpm install --frozen-lockfile
-pnpm build:packages
-pnpm typecheck
-pnpm test
-pnpm test:browser
-pnpm docs:build
-pnpm pack:plugins
-pnpm test:consumer
-```
+## Troubleshooting and license
 
 | Symptom | Check |
 | --- | --- |
@@ -335,5 +316,6 @@ pnpm test:consumer
 | TIFF option or memory error | Compatible compression/predictor/no-data settings and output size |
 
 MIT licensed, with bundled third-party notices in `dist/licenses`. Public TypeDoc
-comments ship in declarations and are sourced into the shared
-[documentation website](https://github.com/tobilg/georeferencing/tree/main/packages/documentation).
+comments ship in declarations and are published as the
+[API documentation](https://georeferencing-api-docs.gh.tobilg.com). Source, issues and contribution notes are in the
+[GitHub repository](https://github.com/tobilg/georeferencing).

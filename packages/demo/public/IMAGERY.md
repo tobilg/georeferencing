@@ -1,18 +1,22 @@
 # Hamburg example imagery
 
-Retrieved 2026-10-03. These assets belong to the private demo, not the published
-core, React or plugins packages. Application code licensing does not relicense imagery.
+These assets belong to the demo application only. They are not part of the
+published `@georeferencing/core`, `@georeferencing/plugins` or
+`@georeferencing/react` packages, and the repository's MIT license does not apply
+to them.
 
 ## Source image
 
-- File: `elbphilharmonie.webp`, original unmodified response, 93,874 bytes, 1240×697.
-- User-supplied [hamburg.de image](https://www.hamburg.de/resource/image/244210/landscape_ratio16x9/1240/697/7318622fc10dd5f77769a58ccfc8be1e/93342C630206278A1DD5B335B97E3977/b-dop.webp).
-- Publisher: Freie und Hansestadt Hamburg, Landesbetrieb Geoinformation und Vermessung (LGV), via hamburg.de.
-- [Context page](https://www.hamburg.de/politik-und-verwaltung/behoerden/behoerde-fuer-stadtentwicklung-und-wohnen/aemter-und-landesbetrieb/landesbetrieb-geoinformation-und-vermessung/produkte-und-dienstleistungen/geodaten-des-lgv/digitaleorthophotos-244130).
+- File: `elbphilharmonie.webp`, 1240×697, 93,874 bytes, unmodified.
+- © Freie und Hansestadt Hamburg, Landesbetrieb Geoinformation und Vermessung (LGV).
+- Digital orthophoto (DOP) excerpt, retrieved 2026-10-03 from the
+  [LGV digital orthophoto page](https://www.hamburg.de/politik-und-verwaltung/behoerden/behoerde-fuer-stadtentwicklung-und-wohnen/aemter-und-landesbetrieb/landesbetrieb-geoinformation-und-vermessung/produkte-und-dienstleistungen/geodaten-des-lgv/digitaleorthophotos-244130).
+- License: [Datenlizenz Deutschland – Namensnennung – Version 2.0](https://www.govdata.de/dl-de/by-2-0)
+  (dl-de/by-2-0).
 - SHA-256: `89cdd3e26f2ff11e77a854d640d7edd759e287af5c7d5464db64f40051dd7d71`.
-- No georeferencing, capture date or reuse license is asserted for this web derivative.
-  Its source attribution and original rights are retained. It is included as the
-  example expressly supplied by the user for this local demo.
+- The file carries no georeferencing metadata; aligning it is the purpose of the demo.
+
+The demo shows this credit next to the example.
 
 ## Reference map
 
@@ -29,7 +33,7 @@ source, centered on Hamburg harbour. No reference aerial photo or map tiles are 
 
 ## Accuracy
 
-The user selects all image/map pairs. Initial map framing is not an image transform.
-Map features and the aerial photo may differ in date and detail. Use stable ground-level
-quay corners or bridge ends. Elevated roofs can be displaced in orthophotos. This
-exercise is not a surveyed or QGIS numerical parity fixture.
+Initial map framing is not an image transform. Map features and the aerial photo
+may differ in date and detail. Use stable ground-level quay corners or bridge ends.
+Elevated roofs can be displaced in orthophotos. This exercise is not a surveyed or
+QGIS numerical parity fixture.

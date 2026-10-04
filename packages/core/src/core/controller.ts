@@ -431,11 +431,11 @@ export class GeoreferencerController {
       document.featuresReviewedAgainstAlignmentRevision = null;
       for (const p of Object.values(document.provenanceByFeatureId))
         p.lastReviewedAgainstAlignmentRevision = null;
-      this.fitAbort?.abort();
-      this.exportAbort?.abort();
     }
     if (alignment || previewChanged) {
+      // The fit is invalidated, so a running export must stop, not just report cancellation.
       this.fitAbort?.abort();
+      this.exportAbort?.abort();
       this.fitGeneration++;
     }
     this.emit({

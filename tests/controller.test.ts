@@ -428,6 +428,35 @@ describe("optional export plugins", () => {
     expect(c.getSnapshot().exporting).toBe("cancelled");
     c.dispose();
   });
+  it("OUT-01 preview-affecting output changes abort a running export", async () => {
+    const work = deferred<import("@georeferencing/core").ExportContent>();
+    let signal: AbortSignal | undefined;
+    const c = await ready({
+      exports: [
+        {
+          id: "custom",
+          label: "Custom",
+          load: async () => ({
+            run: (ctx) => {
+              signal = ctx.signal;
+              return work.promise;
+            },
+          }),
+        },
+      ],
+    });
+    const result = c.export("custom");
+    await vi.waitFor(() => expect(signal).toBeDefined());
+    c.setOutput({ ...c.getSnapshot().document.output, resampler: "cubic" });
+    expect(signal!.aborted).toBe(true);
+    expect(c.getSnapshot().exporting).toBe("cancelled");
+    expect(await result).toBeNull();
+    const blob = new Blob(["stale"]);
+    work.resolve({ blob, files: [{ name: "stale.txt", blob }] });
+    await Promise.resolve();
+    expect(c.getSnapshot().exporting).toBe("cancelled");
+    c.dispose();
+  });
   it("OUT-01 lazy-load failure remains retryable", async () => {
     const blob = new Blob(["retry"]);
     const load = vi

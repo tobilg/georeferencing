@@ -19,8 +19,8 @@ export type { Pixels } from "./image.js";
 export { outputGrid, sample, warp } from "./warp.js";
 export type { Fit, Raster };
 /**
- * Declared capabilities of the bundled JavaScript engine. Consult the parity register for
- * independently tested tolerances and format limits.
+ * Declared capabilities of the bundled JavaScript engine. See the capabilities guide for
+ * tested tolerances and format limits.
  */
 export const ENGINE_CAPABILITIES = Object.freeze({
   /** Exact supported transformation identifiers. */

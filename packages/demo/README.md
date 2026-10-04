@@ -2,7 +2,8 @@
 
 Private React 19/Vite application demonstrating the public APIs of
 `@georeferencing/core`, `@georeferencing/plugins` and `@georeferencing/react`.
-It is a runnable host integration and is not published to npm.
+It is a runnable host integration and is not published to npm. Try it at
+**https://georeferencing-demo.gh.tobilg.com**.
 
 The main app is a guided Hamburg harbour example: choose an image, select matching
 image/map locations, explicitly run alignment, review, then export or draw. It
@@ -40,8 +41,9 @@ public entry points used by npm consumers, rather than private source aliases.
 
 ## Try the complete workflow
 
-1. Click **Try the Hamburg example**, or choose/drop a local image. The supplied
-   1240×697 WebP is the original image requested from hamburg.de; no pairs are prefilled.
+1. Click **Try the Hamburg example**, or choose/drop a local image. The bundled
+   1240×697 WebP is an aerial image from Hamburg LGV (see
+   [imagery credits](public/IMAGERY.md)); no pairs are prefilled.
 2. Click a recognizable ground-level corner in the source, then the same location
    on the map. The instruction and active view advance automatically. Repeat for
    at least three well-distributed, noncollinear pairs for the default affine model.
@@ -156,7 +158,10 @@ pnpm --filter @georeferencing/demo run preview --port 4173 --strictPort
 `build:demo` builds public package dependencies first, then emits
 `packages/demo/dist`. Vite's relative base permits static hosting below a path.
 The preview server serves that existing build; it does not watch source or publish
-a site. This private package has no npm packaging/publishing workflow.
+a site. CI builds the demo on every change; the
+[release workflow](../../RELEASING.md) deploys it to Cloudflare Pages
+(https://georeferencing-demo.gh.tobilg.com) for each pushed `v*` tag. The package is
+never published to npm.
 
 ## Validation
 

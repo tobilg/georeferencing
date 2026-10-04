@@ -1,6 +1,10 @@
+---
+title: Capabilities and limits
+---
+
 # Capabilities and limits
 
-The current packages are an alpha API for browser-based georeferencing of ordinary
+The packages provide browser-based georeferencing of ordinary
 images. They implement the raster-georeferencer workflow, with optional geographic
 digitizing. They do not reproduce every format, projection resource or desktop
 integration available in a native QGIS/GDAL installation.

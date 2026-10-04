@@ -213,10 +213,13 @@ function App() {
                   roof of the Elbphilharmonie when choosing ground points.
                 </p>
                 <p>
-                  Source image:{" "}
-                  <a href="https://www.hamburg.de/resource/image/244210/landscape_ratio16x9/1240/697/7318622fc10dd5f77769a58ccfc8be1e/93342C630206278A1DD5B335B97E3977/b-dop.webp">
-                    Hamburg LGV / hamburg.de
+                  Source image: ©{" "}
+                  <a href="https://www.hamburg.de/politik-und-verwaltung/behoerden/behoerde-fuer-stadtentwicklung-und-wohnen/aemter-und-landesbetrieb/landesbetrieb-geoinformation-und-vermessung">
+                    Freie und Hansestadt Hamburg, Landesbetrieb Geoinformation
+                    und Vermessung (LGV)
                   </a>
+                  ,{" "}
+                  <a href="https://www.govdata.de/dl-de/by-2-0">dl-de/by-2-0</a>
                   . Map framing supplies no alignment for the source image.
                 </p>
               </details>
