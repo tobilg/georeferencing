@@ -3,13 +3,15 @@
 Releases are published by GitHub Actions. Pushing a `v*` tag runs
 [`release.yml`](.github/workflows/release.yml), which:
 
-1. checks that the tag matches the version of all three public packages;
+1. checks that the tag matches the version of every public package (listed in
+   [`scripts/packages.mjs`](scripts/packages.mjs));
 2. runs the complete [CI workflow](.github/workflows/ci.yml): lint, types, unit
    tests, browser tests in Chromium/Firefox/WebKit, clean-consumer tests,
    documentation checks, and packing with a tarball-content check;
 3. publishes the tarballs that CI verified to npm with
    [trusted publishing](https://docs.npmjs.com/trusted-publishers/) (OIDC, no npm
-   token) and provenance: `@georeferencing/core` first, then `plugins` and `react`;
+   token) and provenance: `@georeferencing/core` first, then `plugins`, `react`,
+   `openlayers`, `maplibre` and `leaflet`;
 4. deploys the documentation site and the demo that CI built to Cloudflare Pages:
 
    | Site | Pages project | URL |
@@ -24,8 +26,10 @@ never published.
 
 ## Versioning
 
-`@georeferencing/core`, `@georeferencing/plugins` and `@georeferencing/react`
-always share one version. Plugins and React declare core as a peer dependency with a
+`@georeferencing/core`, `@georeferencing/plugins`, `@georeferencing/react` and the
+map adapters `@georeferencing/openlayers`, `@georeferencing/maplibre` and
+`@georeferencing/leaflet` always share one version. Every package except core declares
+core as a peer dependency with a
 caret range on that version (packed from `workspace:^`), so applications always install
 exactly one core; users are told to install matching versions.
 
@@ -60,8 +64,9 @@ the dist-tags with `npm dist-tag ls @georeferencing/core`.
 
 ### npm trusted publishing
 
-For **each** of `@georeferencing/core`, `@georeferencing/plugins` and
-`@georeferencing/react`, open the package's **Settings → Trusted publishing** on
+For **each** public package (`core`, `plugins`, `react`, `openlayers`, `maplibre`
+and `leaflet` in the `@georeferencing` scope), open the package's
+**Settings → Trusted publishing** on
 npmjs.com and add a GitHub Actions publisher:
 
 | Field | Value |
@@ -84,6 +89,10 @@ npm publish ./artifacts/georeferencing-core-0.1.0.tgz --access public
 npm publish ./artifacts/georeferencing-plugins-0.1.0.tgz --access public
 npm publish ./artifacts/georeferencing-react-0.1.0.tgz --access public
 ```
+
+Packages added later (`openlayers`, `maplibre` and `leaflet` were added for 0.4.0)
+need the same bootstrap for their first version: publish only the new packages'
+tarballs manually, add their trusted publishers, then push the tag.
 
 Then push the `v0.1.0` tag. The release workflow skips the already-published
 packages and completes the Pages deployments and the GitHub release. Manually

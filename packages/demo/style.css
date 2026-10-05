@@ -32,6 +32,18 @@ body {
   color: #50635b;
   margin: 0;
 }
+.workshop-topline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.workshop-libraries {
+  display: flex;
+  gap: 4px;
+  font-size: 12px;
+}
 .workshop-map {
   height: clamp(280px, 44vh, 480px);
   background: #dfe5df;
@@ -66,4 +78,22 @@ body {
   .workshop-map {
     height: 340px;
   }
+}
+/* Map library switcher; after the generic link rules it refines. */
+.workshop-header .workshop-libraries a {
+  padding: 1px 8px;
+  border: 1px solid #cbd4c8;
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 500;
+}
+.workshop-header .workshop-libraries a[aria-current="page"] {
+  background: #12695b;
+  border-color: #12695b;
+  color: #fff;
+}
+/* Leaflet paints its own grey (#ddd) where tiles are still loading; use the same map
+   background as the OpenLayers and MapLibre variants instead. */
+.workshop-map.leaflet-container {
+  background: #dfe5df;
 }

@@ -3,10 +3,11 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { PUBLIC_PACKAGES } from "./packages.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const results = [];
-for (const name of ["core", "plugins", "react"]) {
+for (const name of PUBLIC_PACKAGES) {
   const source = JSON.parse(
     readFileSync(join(root, "packages", name, "package.json"), "utf8"),
   );

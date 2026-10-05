@@ -1,3 +1,4 @@
+import type { MapCapture } from "@georeferencing/core/map";
 import {
   accuracy,
   points,
@@ -7,14 +8,19 @@ import {
 import { geoTiff } from "@georeferencing/plugins/geotiff";
 import { jpeg } from "@georeferencing/plugins/jpeg";
 import { pdf } from "@georeferencing/plugins/pdf";
-import type OLMap from "ol/Map.js";
 
-/** All demo formats are opt-in; hosts may register any subset. */
-export function demoExports(map: () => OLMap | undefined, definitions = {}) {
+/**
+ * All demo formats are opt-in; hosts may register any subset. `capture` returns the
+ * current reference map for the PDF report, or undefined to omit the map page.
+ */
+export function demoExports(
+  capture: () => Promise<MapCapture> | undefined,
+  definitions = {},
+) {
   return [
     geoTiff(),
     jpeg(),
-    pdf({ map, definitions }),
+    pdf({ capture, definitions }),
     worldFile(),
     session(),
     points(definitions),

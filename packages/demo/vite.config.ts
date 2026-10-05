@@ -6,7 +6,14 @@ import { defineConfig } from "vite";
 // Vite discovers their third-party imports, including lazy ones such as pdf-lib, at
 // startup. Otherwise the dev server optimizes them on first use and reloads the page,
 // discarding the editor session (for example on the first PDF export).
-const workspaceDist = ["core", "plugins", "react"].map((name) =>
+const workspaceDist = [
+  "core",
+  "plugins",
+  "react",
+  "openlayers",
+  "maplibre",
+  "leaflet",
+].map((name) =>
   fileURLToPath(new URL(`../${name}/dist/**/*.js`, import.meta.url)),
 );
 
@@ -23,6 +30,9 @@ export default defineConfig({
       "@georeferencing/core",
       "@georeferencing/plugins",
       "@georeferencing/react",
+      "@georeferencing/openlayers",
+      "@georeferencing/maplibre",
+      "@georeferencing/leaflet",
     ],
   },
   server: { fs: { allow: [fileURLToPath(new URL("../..", import.meta.url))] } },

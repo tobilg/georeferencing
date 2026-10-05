@@ -4,15 +4,16 @@
 [![npm](https://img.shields.io/npm/v/@georeferencing/core?label=%40georeferencing%2Fcore)](https://www.npmjs.com/package/@georeferencing/core)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Georeference images in the browser against an existing OpenLayers map. Users load
-a local image, pair image points with map locations, fit one of seven QGIS-style
+Georeference images in the browser against an existing OpenLayers, MapLibre GL or
+Leaflet map. Users load a local image, pair image points with map locations, fit one of seven QGIS-style
 transformations, export a real GeoTIFF and optionally draw points, lines and
 polygons that your application persists.
 
 - **Local processing.** Decoding, fitting and warping run in browser workers. No
   backend, WASM runtime, CDN or telemetry is required.
-- **Bring your own map.** The editor attaches to a host-owned OpenLayers map and
-  never disposes host layers or views.
+- **Bring your own map.** The editor attaches to a host-owned OpenLayers, MapLibre GL
+  or Leaflet map through a small adapter contract, and never disposes host layers or
+  views. Other map libraries can implement the same contract.
 - **Host-owned persistence.** Saves hand your application immutable, revisioned
   GeoJSON snapshots with stable IDs and provenance.
 - **Opt-in exports.** GeoTIFF, JPEG + world file, PDF report, session JSON, QGIS
@@ -27,28 +28,37 @@ polygons that your application persists.
 
 | Package | Description |
 | --- | --- |
-| [`@georeferencing/core`](packages/core/README.md) [![npm](https://img.shields.io/npm/v/@georeferencing/core)](https://www.npmjs.com/package/@georeferencing/core) | Headless sessions, transforms, worker processing and OpenLayers adapters. No React or PDF dependency. |
+| [`@georeferencing/core`](packages/core/README.md) [![npm](https://img.shields.io/npm/v/@georeferencing/core)](https://www.npmjs.com/package/@georeferencing/core) | Headless sessions, transforms, worker processing and the map-adapter contract. No map library, React or PDF dependency. |
 | [`@georeferencing/plugins`](packages/plugins/README.md) [![npm](https://img.shields.io/npm/v/@georeferencing/plugins)](https://www.npmjs.com/package/@georeferencing/plugins) | Optional GeoTIFF, JPEG, PDF and data exports with per-format entry points. |
-| [`@georeferencing/react`](packages/react/README.md) [![npm](https://img.shields.io/npm/v/@georeferencing/react)](https://www.npmjs.com/package/@georeferencing/react) | Ready-made editor, composable panels, a subscription hook and scoped CSS. |
+| [`@georeferencing/react`](packages/react/README.md) [![npm](https://img.shields.io/npm/v/@georeferencing/react)](https://www.npmjs.com/package/@georeferencing/react) | Ready-made editor, composable panels, a subscription hook and scoped CSS, for any map adapter. |
+| [`@georeferencing/openlayers`](packages/openlayers/README.md) [![npm](https://img.shields.io/npm/v/@georeferencing/openlayers)](https://www.npmjs.com/package/@georeferencing/openlayers) | OpenLayers adapter: any projection, WFS GML and borrowed host layers. |
+| [`@georeferencing/maplibre`](packages/maplibre/README.md) [![npm](https://img.shields.io/npm/v/@georeferencing/maplibre)](https://www.npmjs.com/package/@georeferencing/maplibre) | MapLibre GL JS adapter, drawing with Terra Draw. |
+| [`@georeferencing/leaflet`](packages/leaflet/README.md) [![npm](https://img.shields.io/npm/v/@georeferencing/leaflet)](https://www.npmjs.com/package/@georeferencing/leaflet) | Leaflet adapter, drawing with Terra Draw. |
 
-All three packages are released together with the same version number. **Always
-install the same version of every `@georeferencing/*` package.** Plugins and
-React declare core as a peer dependency, so your application provides the single
+All packages are released together with the same version number. **Always
+install the same version of every `@georeferencing/*` package.** Every package
+declares core as a peer dependency, so your application provides the single
 copy of core they share; a mismatched version produces a peer-dependency warning
 instead of a silent second copy with a separate proj4 projection registry. See
 [keep package versions aligned](https://georeferencing-api-docs.gh.tobilg.com/Getting_started/#keep-package-versions-aligned).
 
 ## Install
 
+Install core, the React editor, the export plugins and the adapter for your map
+library:
+
 ```sh
-npm install @georeferencing/core @georeferencing/react @georeferencing/plugins react react-dom ol
-# or
-pnpm add @georeferencing/core @georeferencing/react @georeferencing/plugins react react-dom ol
+# OpenLayers
+npm install @georeferencing/core @georeferencing/react @georeferencing/plugins @georeferencing/openlayers react react-dom ol
+# MapLibre GL JS (Terra Draw only for drawing)
+npm install @georeferencing/core @georeferencing/react @georeferencing/plugins @georeferencing/maplibre react react-dom maplibre-gl terra-draw terra-draw-maplibre-gl-adapter
+# Leaflet (Terra Draw only for drawing)
+npm install @georeferencing/core @georeferencing/react @georeferencing/plugins @georeferencing/leaflet react react-dom leaflet terra-draw terra-draw-leaflet-adapter
 ```
 
-Peers: React/React DOM `>=19.3.0 <20` and OpenLayers `>=10.10.0 <11`. React and
-OpenLayers stay owned by your application. Headless integrations need only
-`@georeferencing/core` (plus `ol` for the map adapters).
+Peers: React/React DOM `>=19.3.0 <20`, and OpenLayers `>=10.10.0 <11`, MapLibre GL JS
+`>=6 <7` or Leaflet `^1.9.4` for the respective adapter. React and the map stay owned
+by your application. Headless integrations need only `@georeferencing/core`.
 
 The packages are ESM-only and ship TypeScript declarations. Browser processing
 requires module workers, File/Blob, OffscreenCanvas and Web Crypto in a secure
@@ -57,7 +67,7 @@ context. Importing the packages is SSR-safe; no map or worker is created at impo
 ## Quick start
 
 ```tsx
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type Map from "ol/Map.js";
 import {
   Georeferencer,
@@ -68,6 +78,7 @@ import { createWorkerEngine } from "@georeferencing/core/engine";
 import { geoTiff } from "@georeferencing/plugins/geotiff";
 import { jpeg } from "@georeferencing/plugins/jpeg";
 import { pdf } from "@georeferencing/plugins/pdf";
+import { captureOpenLayersMap, openLayers } from "@georeferencing/openlayers";
 import "@georeferencing/react/styles.css";
 
 export function ImageEditor({
@@ -83,13 +94,24 @@ export function ImageEditor({
         workingCrs: "EPSG:3857", // choose your actual working CRS
         engine: createWorkerEngine(),
         digitizing: true, // omit/false for alignment and raster export only
-        exports: [geoTiff(), jpeg(), pdf({ map })], // choose only needed formats
+        // choose only needed formats; the PDF report captures the current map
+        exports: [geoTiff(), jpeg(), pdf({ capture: () => captureOpenLayersMap(map) })],
         onSave: persist,
       }),
   );
-  return <Georeferencer controller={controller} referenceMap={map} />;
+  // Create the adapter once per map: a new adapter re-attaches the editor.
+  const adapter = useMemo(() => openLayers(map), [map]);
+  return <Georeferencer controller={controller} map={adapter} />;
 }
 ```
+
+With MapLibre GL JS or Leaflet, use `maplibre(map)` from `@georeferencing/maplibre` or
+`leaflet(map, { lib: L })` from `@georeferencing/leaflet` instead. The
+[React and map libraries guide](https://georeferencing-api-docs.gh.tobilg.com/React_and_map_libraries/)
+has a complete integration for each library, and the
+[map adapters guide](https://georeferencing-api-docs.gh.tobilg.com/Map_adapters/)
+compares them and shows how to write an adapter for another map library. Without
+React, see [using core without React](https://georeferencing-api-docs.gh.tobilg.com/Using_core_without_React/).
 
 With Vite, emit module workers:
 
@@ -115,12 +137,15 @@ controls, and enable expert controls one by one with the `controls` prop. The
 | Guide | Covers |
 | --- | --- |
 | [Getting started](https://georeferencing-api-docs.gh.tobilg.com/Getting_started/) | Installation, version alignment, host-map integration and composable UI |
-| [Capabilities and limits](https://georeferencing-api-docs.gh.tobilg.com/Capabilities_and_limits/) | Supported models, input formats, resource budgets and integration boundaries |
-| [Optional export plugins](https://georeferencing-api-docs.gh.tobilg.com/Optional_export_plugins/) | Registering formats, export results and custom exporters |
-| [Coordinates and raster output](https://georeferencing-api-docs.gh.tobilg.com/Coordinates_and_raster_output/) | Pixel conventions, CRS spaces, residuals, resampling and output settings |
+| [React and map libraries](https://georeferencing-api-docs.gh.tobilg.com/React_and_map_libraries/) | Complete React integrations for OpenLayers, MapLibre GL and Leaflet, map lifecycle, sessions and troubleshooting |
+| [Using core without React](https://georeferencing-api-docs.gh.tobilg.com/Using_core_without_React/) | Controller, engine and map adapter in plain TypeScript, the editing workflow and cleanup |
+| [Map adapters](https://georeferencing-api-docs.gh.tobilg.com/Map_adapters/) | OpenLayers, MapLibre GL and Leaflet adapters, Terra Draw, custom adapters and migration from 0.3 |
 | [Reference data](https://georeferencing-api-docs.gh.tobilg.com/Reference_data/) | WFS, borrowed layers, GeoJSON, custom loaders and snapping |
+| [Optional export plugins](https://georeferencing-api-docs.gh.tobilg.com/Optional_export_plugins/) | Registering formats, export results and custom exporters |
 | [Image lifecycle and saving](https://georeferencing-api-docs.gh.tobilg.com/Image_lifecycle_and_saving/) | Image replacement, guards, confirmation, review and save semantics |
+| [Coordinates and raster output](https://georeferencing-api-docs.gh.tobilg.com/Coordinates_and_raster_output/) | Pixel conventions, CRS spaces, residuals, resampling and output settings |
 | [Workers, packaging and deployment](https://georeferencing-api-docs.gh.tobilg.com/Workers,_packaging_and_deployment/) | Worker assets, CSP, projections, datum grids and budgets |
+| [Capabilities and limits](https://georeferencing-api-docs.gh.tobilg.com/Capabilities_and_limits/) | Supported models, input formats, resource budgets and integration boundaries |
 
 The guides' sources live in [`packages/documentation/guides`](packages/documentation/guides).
 Each package README also covers its own API in depth.
@@ -135,8 +160,10 @@ Each package README also covers its own API in depth.
   preview and export.
 - **Output:** uint8 RGBA GeoTIFF (none/Deflate/PackBits, optional numeric no-data)
   with an EPSG code below 32767; JPEG with `.jgw` and `.crs.json` sidecars.
-- **References:** WFS 1.1/2.0 (GeoJSON or GML), existing vector layers, GeoJSON
-  and custom loaders, with vertex/edge snapping. Requests go through an
+- **Maps:** OpenLayers, MapLibre GL JS and Leaflet adapters, or your own adapter for
+  another library. Drawing uses native OpenLayers interactions or Terra Draw.
+- **References:** WFS 1.1/2.0 (GeoJSON with every adapter, GML with OpenLayers),
+  borrowed OpenLayers layers, GeoJSON and custom loaders, with vertex/edge snapping. Requests go through an
   injectable `request` function, so authentication stays in your application.
 - **Projections:** EPSG:3857 and EPSG:4326 are built in. Register other CRSs
   through proj4 definitions, plus NTv2 datum grids where needed.
@@ -156,7 +183,8 @@ pnpm dev          # build and watch the packages and start the demo
 
 Open the printed URL and choose **Try the Hamburg example**: select a point in the
 image, then its matching map location; repeat and choose **Run alignment**. The
-demo map uses OpenStreetMap tiles and needs an internet connection.
+switch in the header (or `?map=maplibre` / `?map=leaflet`) runs the demo with another
+map library. The demo map uses OpenStreetMap tiles and needs an internet connection.
 
 | Command | Purpose |
 | --- | --- |
@@ -173,7 +201,9 @@ demo map uses OpenStreetMap tiles and needs an internet connection.
 Repository layout:
 
 - [`packages/core`](packages/core), [`packages/plugins`](packages/plugins),
-  [`packages/react`](packages/react): the published packages.
+  [`packages/react`](packages/react), [`packages/openlayers`](packages/openlayers),
+  [`packages/maplibre`](packages/maplibre), [`packages/leaflet`](packages/leaflet):
+  the published packages.
 - [`packages/demo`](packages/demo/README.md): the Hamburg demo app, deployed to
   [georeferencing-demo.gh.tobilg.com](https://georeferencing-demo.gh.tobilg.com)
   (not published to npm).

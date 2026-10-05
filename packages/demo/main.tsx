@@ -1,34 +1,51 @@
 import { GeoreferencerController } from "@georeferencing/core";
 import { createWorkerEngine } from "@georeferencing/core/engine";
+import type { MapAdapter } from "@georeferencing/core/map";
 import GeoreferencingWorker from "@georeferencing/core/worker?worker";
 import { Georeferencer, useGeoreferencer } from "@georeferencing/react";
-import { defaults as defaultInteractions } from "ol/interaction/defaults.js";
-import TileLayer from "ol/layer/Tile.js";
-import OLMap from "ol/Map.js";
-import OSM from "ol/source/OSM.js";
-import View from "ol/View.js";
-import { StrictMode, useCallback, useEffect, useRef, useState } from "react";
+import { StrictMode, useCallback, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import "ol/ol.css";
 import "@georeferencing/react/styles.css";
 import "./style.css";
 import { demoExports } from "./exports.js";
+import type { CreateDemoMap, DemoMap, MapLibrary } from "./maps/types.js";
 
-// Initial map framing only; these bounds never georeference the source image.
-const hamburgExtent = [
-  1110857.1986260768, 7083289.917462825, 1112415.671497183, 7084488.848353962,
+// Initial map framing for the example image; it never georeferences the source image.
+const HAMBURG_HARBOUR: [number, number, number, number] = [
+  9.979, 53.538, 9.993, 53.5444,
 ];
+
+/** Map libraries; only the selected one is downloaded. */
+const LIBRARIES: Record<
+  MapLibrary,
+  { label: string; load: () => Promise<{ createDemoMap: CreateDemoMap }> }
+> = {
+  openlayers: {
+    label: "OpenLayers",
+    load: () => import("./maps/openlayers.js"),
+  },
+  maplibre: { label: "MapLibre GL", load: () => import("./maps/maplibre.js") },
+  leaflet: { label: "Leaflet", load: () => import("./maps/leaflet.js") },
+};
+const requested = new URLSearchParams(window.location.search).get("map");
+const library: MapLibrary =
+  requested && requested in LIBRARIES
+    ? (requested as MapLibrary)
+    : "openlayers";
 
 declare global {
   interface Window {
-    demo: { controller: GeoreferencerController; map: OLMap };
+    demo: {
+      controller: GeoreferencerController;
+      /** Native map of the selected library (an OpenLayers map by default). */
+      map: unknown;
+      library: MapLibrary;
+    };
   }
 }
 
-function App() {
-  const mapRef = useRef<OLMap | null>(null);
-  const basemapSource = useRef<OSM | null>(null);
-  const [map, setMap] = useState<OLMap | null>(null);
+function App({ createDemoMap }: { createDemoMap: CreateDemoMap }) {
+  const demoMap = useRef<DemoMap | null>(null);
   const [loadingExample, setLoadingExample] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const exampleAbort = useRef<AbortController | null>(null);
@@ -41,7 +58,7 @@ function App() {
         engine: createWorkerEngine({
           workerFactory: () => new GeoreferencingWorker(),
         }),
-        exports: demoExports(() => mapRef.current ?? undefined),
+        exports: demoExports(() => demoMap.current?.capture?.()),
         // Demo persistence: accepted features stay in this browser's localStorage.
         onSave: async (snapshot) => {
           localStorage.setItem(
@@ -51,45 +68,34 @@ function App() {
         },
       }),
   );
-  const state = useGeoreferencer(controller);
-  useEffect(() => {
-    // OSM supplies the standard tile URL, anonymous CORS and visible attribution.
-    const source = new OSM();
-    source.on("tileloaderror", () =>
-      setMapError(
-        "Some OpenStreetMap tiles could not load. Check your connection and retry.",
-      ),
-    );
-    basemapSource.current = source;
-    const map = new OLMap({
-      // OpenLayers' Map default only pans/zooms by mouse after a focusable target has
-      // keyboard focus; allow both immediately while keeping keyboard navigation.
-      interactions: defaultInteractions({ onFocusOnly: false }),
-      layers: [new TileLayer({ source })],
-      view: new View({
-        projection: "EPSG:3857",
-        center: [1111636, 7083889],
-        resolution: 2.1,
-      }),
-    });
-    mapRef.current = map;
-    setMap(map);
-    Object.assign(window, { demo: { controller, map } });
-    return () => {
-      exampleAbort.current?.abort();
-      map.setTarget(undefined);
-      map.dispose();
-      source.dispose();
-      mapRef.current = null;
-      basemapSource.current = null;
-    };
-  }, [controller]);
-  // The ref attaches before child effects bind interactions, including map keyboard controls.
-  const target = useCallback(
-    (element: HTMLDivElement | null) => {
-      map?.setTarget(element ?? undefined);
+  // The map is created by the container's ref callback, which React runs before the
+  // editor's effects attach the adapter. This stable adapter forwards to that map.
+  const [adapter] = useState<MapAdapter>(
+    () => (editor: GeoreferencerController) => {
+      if (!demoMap.current) throw Error("The reference map is not ready.");
+      return demoMap.current.adapter(editor);
     },
-    [map],
+  );
+  const state = useGeoreferencer(controller);
+  const container = useCallback(
+    (element: HTMLDivElement | null) => {
+      if (!element) return;
+      const created = createDemoMap(element, () =>
+        setMapError(
+          "Some OpenStreetMap tiles could not load. Check your connection and retry.",
+        ),
+      );
+      demoMap.current = created;
+      Object.assign(window, {
+        demo: { controller, map: created.map, library },
+      });
+      return () => {
+        exampleAbort.current?.abort();
+        if (demoMap.current === created) demoMap.current = null;
+        created.dispose();
+      };
+    },
+    [controller, createDemoMap],
   );
   const loadExample = async () => {
     exampleAbort.current?.abort();
@@ -118,17 +124,30 @@ function App() {
   return (
     <main className="workshop">
       <header className="workshop-header">
-        <a href="https://github.com/tobilg/georeferencing">georeferencing</a>
+        <div className="workshop-topline">
+          <a href="https://github.com/tobilg/georeferencing">georeferencing</a>
+          <nav className="workshop-libraries" aria-label="Map library">
+            {(Object.keys(LIBRARIES) as MapLibrary[]).map((key) => (
+              <a
+                key={key}
+                href={`?map=${key}`}
+                aria-current={key === library ? "page" : undefined}
+              >
+                {LIBRARIES[key].label}
+              </a>
+            ))}
+          </nav>
+        </div>
         <h1>Match an image to the map</h1>
         <p className="workshop-intro">
           Place a photo, plan or scan on the map in four steps. Your image never
           leaves this browser.
         </p>
       </header>
-      {map && (
+      {
         <Georeferencer
           controller={controller}
-          referenceMap={map}
+          map={adapter}
           controls={{ transformation: true }}
           emptyImageActions={
             <button
@@ -150,24 +169,20 @@ function App() {
                 <h2>Reference map</h2>
                 <button
                   type="button"
-                  onClick={() =>
-                    map
-                      .getView()
-                      .fit(hamburgExtent, { padding: [12, 12, 12, 12] })
-                  }
+                  onClick={() => demoMap.current?.fitBounds(HAMBURG_HARBOUR)}
                 >
                   Show Hamburg area
                 </button>
               </div>
               <div className="rg-image-meta">
-                OpenStreetMap · Hamburg harbour
+                {LIBRARIES[library].label} · OpenStreetMap · Hamburg harbour
               </div>
               <div
-                ref={target}
+                ref={container}
                 className="workshop-map"
                 role="application"
                 aria-label="Reference map"
-                // biome-ignore lint/a11y/noNoninteractiveTabindex: OpenLayers attaches keyboard navigation to this focusable map target.
+                // biome-ignore lint/a11y/noNoninteractiveTabindex: Map libraries attach keyboard navigation to this focusable map target.
                 tabIndex={0}
               />
               <p className="rg-hint">Drag to pan, scroll or use +/− to zoom.</p>
@@ -180,7 +195,7 @@ function App() {
                     type="button"
                     onClick={() => {
                       setMapError(null);
-                      basemapSource.current?.refresh();
+                      demoMap.current?.retryTiles();
                     }}
                   >
                     Retry map tiles
@@ -223,12 +238,14 @@ function App() {
             />
           )}
         />
-      )}
+      }
     </main>
   );
 }
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+void LIBRARIES[library].load().then(({ createDemoMap }) =>
+  createRoot(document.getElementById("root")!).render(
+    <StrictMode>
+      <App createDemoMap={createDemoMap} />
+    </StrictMode>,
+  ),
 );

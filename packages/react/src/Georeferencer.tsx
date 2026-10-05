@@ -1,4 +1,5 @@
 import type {
+  Definitions,
   ExportResult,
   GeoreferencerController,
   GuardContext,
@@ -6,9 +7,7 @@ import type {
   Tool,
 } from "@georeferencing/core";
 import { MODELS } from "@georeferencing/core";
-import type { BindingOptions } from "@georeferencing/core/openlayers";
-import { attachReferenceMap } from "@georeferencing/core/openlayers";
-import type OLMap from "ol/Map.js";
+import type { MapAdapter, MapBinding } from "@georeferencing/core/map";
 import type { ReactNode } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { AccuracySummary } from "./components/accuracy.js";
@@ -30,12 +29,11 @@ import { ImagePanel } from "./panels/ImagePanel.js";
 import { PreviewControls } from "./panels/PreviewControls.js";
 import { ReferencePanel } from "./panels/ReferencePanel.js";
 
-const DEFAULT_BINDING: BindingOptions = {};
 const NO_CONTROLS: Partial<GeoreferencerControls> = {};
 
 /**
- * Integration props for the ready-made editor. Keep controller, map and binding
- * configuration stable across React renders.
+ * Integration props for the ready-made editor. Keep the controller and map adapter
+ * stable across React renders.
  */
 export interface GeoreferencerProps {
   /**
@@ -62,15 +60,18 @@ export interface GeoreferencerProps {
    */
   controller: GeoreferencerController;
   /**
-   * Existing host-owned OpenLayers map. The component attaches owned layers/interactions
-   * and leaves the map alive on unmount.
+   * Adapter for the host-owned map, for example `openLayers(map, options)` from
+   * `@georeferencing/openlayers`, `maplibre(map, options)` from `@georeferencing/maplibre`
+   * or `leaflet(map, options)` from `@georeferencing/leaflet`. The component attaches it
+   * on mount and detaches it on unmount; the map itself stays alive. Create the adapter
+   * once (for example with `useMemo`): a new adapter re-attaches the map.
    */
-  referenceMap: OLMap;
+  map: MapAdapter;
   /**
-   * Reference providers, projections, snapping and optional initial map framing. Memoize
-   * this object to avoid reattachment.
+   * Host projection definitions, used for coordinate-unit labels in output settings.
+   * Pass the same definitions as to the engine and the map adapter.
    */
-  bindingOptions?: BindingOptions;
+  definitions?: Definitions;
   /** Translation function for default English messages; identity when omitted. */
   t?: Translate;
   /**
@@ -111,8 +112,8 @@ function selectTool(controller: GeoreferencerController, tool: Tool): void {
  */
 export function Georeferencer({
   controller,
-  referenceMap,
-  bindingOptions = DEFAULT_BINDING,
+  map,
+  definitions,
   t = identity,
   className = "",
   propertyEditor,
@@ -124,7 +125,12 @@ export function Georeferencer({
 }: GeoreferencerProps) {
   const guardTitle = useId();
   const s = useGeoreferencer(controller),
-    binding = useRef<ReturnType<typeof attachReferenceMap> | null>(null);
+    binding = useRef<MapBinding | null>(null);
+  // Optional binding capabilities, known once the adapter has attached.
+  const [capabilities, setCapabilities] = useState({
+    drawing: false,
+    history: false,
+  });
   const [guard, setGuard] = useState<{
       context: GuardContext;
       resolve: (choice: "save" | "discard" | "cancel") => void;
@@ -165,16 +171,16 @@ export function Georeferencer({
       selectTool(controller, "gcp");
   }, [controller, guided, step, s.tool, s.mode]);
   useEffect(() => {
-    if (guided && mobileView === "map") referenceMap.updateSize();
-  }, [guided, mobileView, referenceMap]);
+    if (guided && mobileView === "map") binding.current?.resize?.();
+  }, [guided, mobileView]);
   useEffect(() => {
     controller.start();
     try {
-      binding.current = attachReferenceMap(
-        referenceMap,
-        controller,
-        bindingOptions,
-      );
+      binding.current = map(controller);
+      setCapabilities({
+        drawing: Boolean(binding.current.finishDrawing),
+        history: Boolean(binding.current.navigateHistory),
+      });
     } catch (error) {
       // Invalid projection or datum-grid configuration: keep the editor mounted and
       // show the error instead of unmounting the host tree.
@@ -186,7 +192,7 @@ export function Georeferencer({
       binding.current = null;
       controller.suspend();
     };
-  }, [referenceMap, controller, bindingOptions]);
+  }, [map, controller]);
   useEffect(() => {
     if (controller.options.guard) return;
     let pending: ((choice: "save" | "discard" | "cancel") => void) | null =
@@ -301,14 +307,16 @@ export function Georeferencer({
       controls.unsavedIndicator ||
       ["LineString", "Polygon"].includes(s.tool)) ? (
       <div className="rg-toolbar rg-match-tools">
-        {step === 3 && ["LineString", "Polygon"].includes(s.tool) && (
-          <button
-            type="button"
-            onClick={() => binding.current?.finishDrawing()}
-          >
-            {t("Finish drawing")}
-          </button>
-        )}
+        {step === 3 &&
+          capabilities.drawing &&
+          ["LineString", "Polygon"].includes(s.tool) && (
+            <button
+              type="button"
+              onClick={() => binding.current?.finishDrawing?.()}
+            >
+              {t("Finish drawing")}
+            </button>
+          )}
         {controls.history && (
           <>
             <button
@@ -327,17 +335,17 @@ export function Georeferencer({
             </button>
           </>
         )}
-        {controls.navigation && (
+        {controls.navigation && capabilities.history && (
           <>
             <button
               type="button"
-              onClick={() => binding.current?.navigateHistory(-1)}
+              onClick={() => binding.current?.navigateHistory?.(-1)}
             >
               {t("Previous map view")}
             </button>
             <button
               type="button"
-              onClick={() => binding.current?.navigateHistory(1)}
+              onClick={() => binding.current?.navigateHistory?.(1)}
             >
               {t("Next map view")}
             </button>
@@ -615,7 +623,7 @@ export function Georeferencer({
                       <OutputFields
                         controller={controller}
                         t={t}
-                        definitions={bindingOptions.definitions}
+                        definitions={definitions}
                       />
                     </details>
                   )}
@@ -688,26 +696,31 @@ export function Georeferencer({
             >
               {t("Fit map to image")}
             </button>
-            <button
-              type="button"
-              onClick={() => binding.current?.navigateHistory(-1)}
-            >
-              {t("Previous map view")}
-            </button>
-            <button
-              type="button"
-              onClick={() => binding.current?.navigateHistory(1)}
-            >
-              {t("Next map view")}
-            </button>
-            {["LineString", "Polygon"].includes(s.tool) && (
-              <button
-                type="button"
-                onClick={() => binding.current?.finishDrawing()}
-              >
-                {t("Finish drawing")}
-              </button>
+            {capabilities.history && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => binding.current?.navigateHistory?.(-1)}
+                >
+                  {t("Previous map view")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => binding.current?.navigateHistory?.(1)}
+                >
+                  {t("Next map view")}
+                </button>
+              </>
             )}
+            {capabilities.drawing &&
+              ["LineString", "Polygon"].includes(s.tool) && (
+                <button
+                  type="button"
+                  onClick={() => binding.current?.finishDrawing?.()}
+                >
+                  {t("Finish drawing")}
+                </button>
+              )}
           </div>
           <div className="rg-workbench">
             <ImagePanel
@@ -732,7 +745,7 @@ export function Georeferencer({
               <OutputFields
                 controller={controller}
                 t={t}
-                definitions={bindingOptions.definitions}
+                definitions={definitions}
               />
             )}
             <ExportButtons

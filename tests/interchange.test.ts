@@ -13,7 +13,7 @@ import {
 } from "../packages/core/src/core/projection.js";
 import { fitTransform } from "../packages/core/src/core/transform.js";
 import { createDocument } from "../packages/core/src/core/types.js";
-import { toGeographicFeature } from "../packages/core/src/openlayers/geometry.js";
+import { toGeographicFeature } from "../packages/openlayers/src/geometry.js";
 import { fixture } from "./fixtures/models.js";
 
 it("OUT-01 densified projected lines retain their path, ID and properties", () => {

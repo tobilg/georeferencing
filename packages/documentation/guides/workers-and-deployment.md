@@ -42,9 +42,12 @@ Each operation has its own worker. Abort terminates that worker or removes queue
 
 ## Package contents
 
-Each package ships ESM, TypeScript declarations with the full API documentation, and third-party notices under `dist/licenses`. CSS ships only with `@georeferencing/react`, encoder workers with `@georeferencing/plugins`, and input processing with `@georeferencing/core`. Install the same version of all three packages; see [keep package versions aligned](./getting-started.md#keep-package-versions-aligned).
+Each package ships ESM, TypeScript declarations with the full API documentation, and third-party notices under `dist/licenses`. CSS ships only with `@georeferencing/react`, encoder workers with `@georeferencing/plugins`, input processing with `@georeferencing/core`, and map-library code with the adapter packages. Install the same version of every `@georeferencing/*` package you use; see [keep package versions aligned](./getting-started.md#keep-package-versions-aligned).
 
-Production worker assets are minified without source maps to keep packages small. PDF's optional map contract is structural, so a headless
-plugins consumer needs no OpenLayers installation.
+Production worker assets are minified without source maps to keep packages small. Core, plugins and React depend on no map library; PDF map pages come from an adapter's capture function, so a headless plugins consumer needs no map library installation.
+
+## Map libraries
+
+Every package, including the map adapters, is importable during server-side rendering; create maps and attach adapters in client lifecycle code. The Leaflet adapter takes the Leaflet module as its `lib` option for this reason. MapLibre GL JS loads its own web worker relative to its module; with Vite, call `setWorkerUrl` with the URL of `maplibre-gl/dist/maplibre-gl-worker.mjs?url` (see the [map adapters guide](./map-adapters.md#maplibre-gl-js)). Terra Draw, used by the MapLibre and Leaflet adapters for drawing, loads only when a drawing tool is first used.
 
 To build the packages, documentation or demo from source, see the [repository README](https://github.com/tobilg/georeferencing#development).

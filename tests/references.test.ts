@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { WfsReference } from "../packages/core/src/openlayers/references.js";
-import {
-  buildWfsUrl,
-  loadWfs,
-  queryBounds,
-} from "../packages/core/src/openlayers/references.js";
+import type { WfsReference } from "../packages/core/src/map/index.js";
+import { buildWfsUrl, queryBounds } from "../packages/core/src/map/index.js";
+import { loadWfs } from "../packages/openlayers/src/references.js";
 
 const base: WfsReference = {
   id: "wfs",

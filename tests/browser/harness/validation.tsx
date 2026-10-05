@@ -1,13 +1,14 @@
 import { project, registerDatumGrids } from "@georeferencing/core/core";
 import { createWorkerEngine } from "@georeferencing/core/engine";
+import { describeWfsFeatureType, discoverWfs } from "@georeferencing/core/map";
+import GeoreferencingWorker from "@georeferencing/core/worker?worker";
+import type { BindingOptions, Reference } from "@georeferencing/openlayers";
 import {
-  describeWfsFeatureType,
-  discoverWfs,
   loadWfs,
+  openLayers,
   registerProjections,
   toGeographicFeature,
-} from "@georeferencing/core/openlayers";
-import GeoreferencingWorker from "@georeferencing/core/worker?worker";
+} from "@georeferencing/openlayers";
 import { Georeferencer, GeoreferencerController } from "@georeferencing/react";
 import Feature from "ol/Feature.js";
 import Point from "ol/geom/Point.js";
@@ -15,7 +16,7 @@ import VectorLayer from "ol/layer/Vector.js";
 import OLMap from "ol/Map.js";
 import VectorSource from "ol/source/Vector.js";
 import View from "ol/View.js";
-import { StrictMode, useEffect, useRef, useState } from "react";
+import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import gridUrl from "../../fixtures/grid.png?url";
 import { fixture } from "../../fixtures/models.js";
@@ -40,9 +41,7 @@ const editors: {
   controller: GeoreferencerController;
   map: OLMap;
   host: VectorLayer<VectorSource<Feature>>;
-  setReferences: (
-    references: import("@georeferencing/core/openlayers").Reference[],
-  ) => void;
+  setReferences: (references: Reference[]) => void;
   detach: () => void;
   attach: () => void;
   setSaveFailure: (fail: boolean) => void;
@@ -71,12 +70,14 @@ const singleEditor =
   new URLSearchParams(window.location.search).get("editors") === "1";
 function Editor({ index }: { index: number }) {
   const failSave = useRef(false);
-  const [bindingOptions, setBindingOptions] = useState<
-    import("@georeferencing/core/openlayers").BindingOptions
-  >({});
+  const [bindingOptions, setBindingOptions] = useState<BindingOptions>({});
   const [visible, setVisible] = useState(true),
     target = useRef<HTMLDivElement>(null),
     [map, setMap] = useState<OLMap | null>(null);
+  const adapter = useMemo(
+    () => (map ? openLayers(map, bindingOptions) : null),
+    [map, bindingOptions],
+  );
   const [controller] = useState(
     () =>
       new GeoreferencerController({
@@ -158,8 +159,8 @@ function Editor({ index }: { index: number }) {
       {map && visible && (
         <Georeferencer
           controller={controller}
-          referenceMap={map}
-          bindingOptions={bindingOptions}
+          map={adapter!}
+          definitions={bindingOptions.definitions}
         />
       )}
     </section>

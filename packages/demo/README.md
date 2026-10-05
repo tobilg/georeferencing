@@ -1,14 +1,15 @@
 # @georeferencing/demo
 
 Private React 19/Vite application demonstrating the public APIs of
-`@georeferencing/core`, `@georeferencing/plugins` and `@georeferencing/react`.
+`@georeferencing/core`, `@georeferencing/plugins`, `@georeferencing/react` and the
+OpenLayers, MapLibre GL and Leaflet map adapters.
 It is a runnable host integration and is not published to npm. Try it at
 **https://georeferencing-demo.gh.tobilg.com**.
 
 The main app is a guided Hamburg harbour example in four steps: load an image,
 match points, check the alignment, then export or draw. It uses the minimal
 default controls of the guided `Georeferencer` layout. It
-owns an OpenLayers map and enables export plugins and a labeled browser-local save
+owns the reference map and enables export plugins and a labeled browser-local save
 adapter. Image processing runs locally in workers. Automated test harnesses live
 separately under [`tests/browser/harness`](../../tests/browser/harness/README.md).
 
@@ -22,9 +23,15 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-`pnpm dev` builds core, plugins and React, watches their source/styles and starts
-Vite for the demo. Open the URL Vite prints, normally `http://127.0.0.1:5173`.
+`pnpm dev` builds the packages, watches their source/styles and starts Vite for
+the demo. Open the URL Vite prints, normally `http://127.0.0.1:5173`.
 The reference map opens on Hamburg harbour with OpenStreetMap street-map tiles.
+
+The map library is OpenLayers by default. The switch in the header, or the `?map=`
+URL parameter (`openlayers`, `maplibre`, `leaflet`), runs the same editor with another
+adapter; only the selected library is downloaded (see `maps/`). The MapLibre variant
+sets MapLibre's worker URL for Vite as documented in its README. PDF reports include a
+map page with OpenLayers and MapLibre, not with Leaflet.
 An internet connection is required for the map; no API key is needed. The supplied
 Hamburg aerial photo loads separately as the source image to align.
 

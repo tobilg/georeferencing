@@ -1,5 +1,5 @@
 {
-  "version": "0.3.0",
+  "version": "0.4.0",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -13,7 +13,7 @@
     "access": "public"
   },
   "name": "@georeferencing/react",
-  "description": "React panels and editor for the headless georeferencing core and optional export plugins",
+  "description": "React editor and panels for the headless georeferencing core, with any map library through map adapters",
   "sideEffects": [
     "**/*.css"
   ],
@@ -34,15 +34,13 @@
   "peerDependencies": {
     "@georeferencing/core": "workspace:^",
     "react": ">=19.3.0 <20",
-    "react-dom": ">=19.3.0 <20",
-    "ol": ">=10.10.0 <11"
+    "react-dom": ">=19.3.0 <20"
   },
   "devDependencies": {
     "@georeferencing/core": "workspace:*",
     "typescript": "5.9.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "ol": "10.10.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3"
   },

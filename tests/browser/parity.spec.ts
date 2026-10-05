@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import type { Model } from "../../packages/core/src/core/types.js";
-import type { WfsReference } from "../../packages/core/src/openlayers/references.js";
+import type { WfsReference } from "../../packages/core/src/map/index.js";
 import type {} from "./harness/validation.js";
 
 // Type-only global augmentation lives with the validation entry; avoid importing its runtime.

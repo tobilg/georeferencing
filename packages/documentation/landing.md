@@ -1,7 +1,8 @@
-Georeference images in the browser against an existing OpenLayers map: load a local
-image, pair image points with map locations, fit one of seven QGIS-style
-transformations, export a GeoTIFF and optionally draw features that your application
-persists. Decoding, fitting and warping run in browser workers; no backend is required.
+Georeference images in the browser against an existing OpenLayers, MapLibre GL or
+Leaflet map: load a local image, pair image points with map locations, fit one of seven
+QGIS-style transformations, export a GeoTIFF and optionally draw features that your
+application persists. Decoding, fitting and warping run in browser workers; no backend
+is required.
 
 [Live demo](https://georeferencing-demo.gh.tobilg.com) ·
 [GitHub](https://github.com/tobilg/georeferencing) ·
@@ -11,13 +12,18 @@ persists. Decoding, fitting and warping run in browser workers; no backend is re
 
 | Package | Responsibility |
 | --- | --- |
-| {@link "@georeferencing/core" @georeferencing/core} | Documents, controller, transforms, projections, worker processing, reference data and the OpenLayers map binding |
+| {@link "@georeferencing/core" @georeferencing/core} | Documents, controller, transforms, projections, worker processing, reference data and the map-adapter contract; no map library or UI dependency |
 | {@link "@georeferencing/plugins" @georeferencing/plugins} | Opt-in GeoTIFF, JPEG, PDF and data exports, each loaded only when used |
-| {@link "@georeferencing/react" @georeferencing/react} | Ready-made editor, composable panels, subscription hook and scoped styles |
+| {@link "@georeferencing/react" @georeferencing/react} | Ready-made editor, composable panels, subscription hook and scoped styles, for any map adapter |
+| {@link "@georeferencing/openlayers" @georeferencing/openlayers} | OpenLayers adapter: any projection, WFS GML and borrowed host layers |
+| {@link "@georeferencing/maplibre" @georeferencing/maplibre} | MapLibre GL JS adapter, drawing with Terra Draw |
+| {@link "@georeferencing/leaflet" @georeferencing/leaflet} | Leaflet adapter, drawing with Terra Draw |
 
-Install the same version of every `@georeferencing/*` package. Plugins and React
-declare core as a peer dependency, so they share your application's copy. Core enables
-no output formats by default; add only the plugins your host needs.
+Install core, the adapter for your map library and, for the ready-made editor, React, all
+in the same version. Every other package declares core as a peer dependency, so they
+share your application's copy. Core enables no output formats by default; add only the
+plugins your host needs. The [map adapters guide](./guides/map-adapters.md) compares the
+adapters.
 
 ## Start with the guides
 
@@ -25,13 +31,16 @@ For an end-to-end host application, begin with the [integration guide](./guides/
 
 | Guide | What it covers |
 | --- | --- |
-| [Capabilities and limits](./guides/capabilities.md) | Models, formats, resource budgets and integration boundaries |
 | [Getting started](./guides/getting-started.md) | Installation, version alignment, a typed host-map integration and composable UI |
-| [Optional export plugins](./guides/export-plugins.md) | Format configuration, results and custom exporters |
-| [Coordinates and raster output](./guides/coordinates-and-output.md) | Pixel conventions, CRS spaces, models, residual formulas, resampling and output limits |
+| [React and map libraries](./guides/react-integration.md) | Complete React integrations per map library, map lifecycle, session ownership, drawing and troubleshooting |
+| [Using core without React](./guides/core-usage.md) | Controller, engine and adapter in plain TypeScript: state, the editing workflow, sessions and cleanup |
+| [Map adapters](./guides/map-adapters.md) | Choosing and configuring the OpenLayers, MapLibre and Leaflet adapters, Terra Draw, custom adapters and migration |
 | [Reference data](./guides/reference-data.md) | WFS axes/paging/authentication, borrowed layers, custom loaders, snapping and incomplete results |
+| [Optional export plugins](./guides/export-plugins.md) | Format configuration, results and custom exporters |
 | [Lifecycle and saving](./guides/lifecycle-and-saving.md) | Image replacement, guards, confirmation, review, immutable saves and resource ownership |
+| [Coordinates and raster output](./guides/coordinates-and-output.md) | Pixel conventions, CRS spaces, models, residual formulas, resampling and output limits |
 | [Workers, packaging and deployment](./guides/workers-and-deployment.md) | Lazy assets, budgets, cancellation, npm packaging, CSP and static hosting |
+| [Capabilities and limits](./guides/capabilities.md) | Models, formats, resource budgets and integration boundaries |
 
 ## Entry points
 
@@ -42,7 +51,7 @@ lists its classes, interfaces, functions and types.
 | --- | --- |
 | {@link "@georeferencing/core" @georeferencing/core} (also `/core`) | Serializable documents, controller, transforms, projections, geometry and interchange |
 | {@link "@georeferencing/core/engine" @georeferencing/core/engine} | Lazy processing workers, raster helpers and scheduler |
-| {@link "@georeferencing/core/openlayers" @georeferencing/core/openlayers} | Host-map integration, reference providers and WFS discovery |
+| {@link "@georeferencing/core/map" @georeferencing/core/map} | Map-adapter contract, shared reference sources (WFS, GeoJSON, custom loaders) and helpers for adapter authors |
 | {@link "@georeferencing/core/encoder-worker" @georeferencing/core/encoder-worker} | Protocol for custom raster codec workers |
 | [`@georeferencing/core/worker`](./guides/workers-and-deployment.md#browser-assets) | Bundled processing-worker script |
 | {@link "@georeferencing/plugins" @georeferencing/plugins} | All lazy format factories; prefer the per-format entries below |
@@ -52,6 +61,9 @@ lists its classes, interfaces, functions and types.
 | {@link "@georeferencing/plugins/serializers" @georeferencing/plugins/serializers} | Pure QGIS points, world-file and accuracy-report serializers |
 | [`@georeferencing/plugins/geotiff-worker`](./guides/workers-and-deployment.md#encoder-assets), [`/jpeg-worker`](./guides/workers-and-deployment.md#encoder-assets) | Bundled codec-worker scripts |
 | {@link "@georeferencing/react" @georeferencing/react} | Ready-made editor, panels, types and subscription hook |
+| {@link "@georeferencing/openlayers" @georeferencing/openlayers} | `openLayers` adapter, `attachReferenceMap`, OpenLayers WFS/GML loading and map capture |
+| {@link "@georeferencing/maplibre" @georeferencing/maplibre} | `maplibre` adapter, `attachMapLibre` and map capture |
+| {@link "@georeferencing/leaflet" @georeferencing/leaflet} | `leaflet` adapter and `attachLeaflet` |
 | [`@georeferencing/react/styles.css`](./guides/getting-started.md#attach-to-an-existing-map) | Optional scoped editor styles |
 
 Worker script entries have no API of their own: load them as workers (the deployment

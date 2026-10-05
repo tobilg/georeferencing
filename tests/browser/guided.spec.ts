@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { expect, type Page, type Route, test } from "@playwright/test";
 import { fromArrayBuffer } from "geotiff";
 import type TileLayer from "ol/layer/Tile.js";
+import type OLMap from "ol/Map.js";
 import type OSM from "ol/source/OSM.js";
 import type {} from "../../packages/demo/main.js";
 
@@ -45,9 +46,11 @@ async function mapPoint(page: Page, coordinate: number[]) {
     exact: true,
   });
   await target.scrollIntoViewIfNeeded();
-  await page.waitForFunction(() => !window.demo.map.getView().getAnimating());
+  await page.waitForFunction(
+    () => !(window.demo.map as OLMap).getView().getAnimating(),
+  );
   const pixel = await page.evaluate((coordinate) => {
-    const map = window.demo.map;
+    const map = window.demo.map as OLMap;
     let pixel = map.getPixelFromCoordinate(coordinate);
     const size = map.getSize()!;
     if (
@@ -105,7 +108,9 @@ test("GCP-01/FIT-02: Hamburg manual matching → run → edit → rerun → expo
   expect((await tileResponse).ok()).toBe(true);
   expect(
     await page.evaluate(() => {
-      const layer = window.demo.map.getLayers().item(0) as TileLayer<OSM>;
+      const layer = (window.demo.map as OLMap)
+        .getLayers()
+        .item(0) as TileLayer<OSM>;
       return {
         visible: layer.getVisible(),
         urls: layer.getSource()!.getUrls(),
@@ -287,7 +292,7 @@ test("FIT-02/IMG-06: automatic preview is explicit; pending cancellation and rep
     "Click a recognizable spot in the image",
   );
   const before = await page.evaluate(() =>
-    window.demo.map.getView().getCenter(),
+    (window.demo.map as OLMap).getView().getCenter(),
   );
   await page.getByRole("button", { name: "Remove image", exact: true }).click();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
@@ -306,7 +311,7 @@ test("FIT-02/IMG-06: automatic preview is explicit; pending cancellation and rep
     )
     .toBe(0);
   expect(
-    await page.evaluate(() => window.demo.map.getView().getCenter()),
+    await page.evaluate(() => (window.demo.map as OLMap).getView().getCenter()),
   ).toEqual(before);
   expect(
     await page.evaluate(() => window.demo.controller.getSnapshot().error),
@@ -332,11 +337,15 @@ test("NFR-06: laptop keeps both views visible; narrow tabs follow incomplete pai
       .evaluate((element) => getComputedStyle(element).padding),
   ).toBe("0px");
   const resolution = await page.evaluate(
-    () => window.demo.map.getView().getResolution()!,
+    () => (window.demo.map as OLMap).getView().getResolution()!,
   );
   await page.locator(".ol-zoom-in").click();
   await expect
-    .poll(() => page.evaluate(() => window.demo.map.getView().getResolution()!))
+    .poll(() =>
+      page.evaluate(
+        () => (window.demo.map as OLMap).getView().getResolution()!,
+      ),
+    )
     .toBeLessThan(resolution);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
     1024,
@@ -375,7 +384,7 @@ test("REF-01/NFR-09: unavailable OSM tiles allow coordinate selection and retry"
   await pair(page, 0);
   const before = await page.evaluate(() => ({
     gcps: window.demo.controller.getSnapshot().document.gcps,
-    center: window.demo.map.getView().getCenter(),
+    center: (window.demo.map as OLMap).getView().getCenter(),
   }));
   await page.unroute(osmTiles, failTiles);
   const recovered = page.waitForResponse(osmTiles);
@@ -389,7 +398,7 @@ test("REF-01/NFR-09: unavailable OSM tiles allow coordinate selection and retry"
   expect(
     await page.evaluate(() => ({
       gcps: window.demo.controller.getSnapshot().document.gcps,
-      center: window.demo.map.getView().getCenter(),
+      center: (window.demo.map as OLMap).getView().getCenter(),
     })),
   ).toEqual(before);
 });
@@ -401,7 +410,7 @@ test("NAV-01: both views pan by dragging and zoom by wheel without page scroll",
   const state = () =>
     page.evaluate(() => {
       const s = window.demo.controller.getSnapshot();
-      const view = window.demo.map.getView();
+      const view = (window.demo.map as OLMap).getView();
       return {
         imageView: s.imageView!,
         pending: s.pendingImagePoint,
@@ -436,7 +445,9 @@ test("NAV-01: both views pan by dragging and zoom by wheel without page scroll",
   await expect
     .poll(async () => (await state()).resolution)
     .toBeLessThan(before.resolution);
-  await page.waitForFunction(() => !window.demo.map.getView().getAnimating());
+  await page.waitForFunction(
+    () => !(window.demo.map as OLMap).getView().getAnimating(),
+  );
   const mapZoomed = await state();
   await drag(map);
   await expect
@@ -470,4 +481,189 @@ test("NAV-02: zooming beyond the preview resolution shows the full-resolution im
   expect(size).toEqual([1240, 697]);
   await page.getByRole("button", { name: "Fit image" }).click();
   await expect(detail).toHaveCount(0);
+});
+for (const library of ["maplibre", "leaflet"]) {
+  test(`MAP-01: the demo matches points with the ${library} adapter`, async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    // MapLibre reports worker failures as console errors, not page errors.
+    page.on("console", (m) => {
+      if (m.type() === "error") errors.push(m.text());
+    });
+    await page.goto(`/?map=${library}`);
+    await expect(
+      page.getByRole("navigation", { name: "Map library" }).getByRole("link", {
+        name: library === "maplibre" ? "MapLibre GL" : "Leaflet",
+      }),
+    ).toHaveAttribute("aria-current", "page");
+    await page.getByRole("button", { name: "Try the Hamburg example" }).click();
+    await expect(page.locator(".rg-image-meta").first()).toHaveText(
+      "elbphilharmonie.webp · 1240 × 697 px",
+    );
+    await imagePoint(page, matches[0].image);
+    await expect(page.locator(".rg-instruction")).toContainText(
+      "same spot on the map",
+    );
+    const map = (await page.locator(".workshop-map").boundingBox())!;
+    await page.mouse.click(map.x + map.width / 2, map.y + map.height / 2);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => window.demo.controller.getSnapshot().document.gcps.length,
+        ),
+      )
+      .toBe(1);
+    await expect(page.locator(".georef-gcp-marker")).toHaveCount(1);
+    expect(errors).toEqual([]);
+  });
+}
+test("MAP-02: every map library opens with the same center and scale", async ({
+  page,
+}) => {
+  const views: Record<string, { center: number[]; resolution: number }> = {};
+  for (const library of ["openlayers", "maplibre", "leaflet"]) {
+    await page.goto(`/?map=${library}`);
+    await page.waitForFunction(() => Boolean(window.demo?.map));
+    // Rendered view: Web Mercator coordinates at the container centre and 100 px right.
+    views[library] = await page.evaluate(async () => {
+      const { library, map } = window.demo as {
+        library: string;
+        // biome-ignore lint/suspicious/noExplicitAny: each library's map API differs.
+        map: any;
+      };
+      const element = document.querySelector(".workshop-map")!;
+      const [cx, cy] = [element.clientWidth / 2, element.clientHeight / 2];
+      const R = 6378137;
+      const mercator = (lon: number, lat: number) => [
+        (R * lon * Math.PI) / 180,
+        R * Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)),
+      ];
+      const at = (x: number, y: number): number[] => {
+        if (library === "openlayers") return map.getCoordinateFromPixel([x, y]);
+        if (library === "maplibre") {
+          const p = map.unproject([x, y]);
+          return mercator(p.lng, p.lat);
+        }
+        const p = map.containerPointToLatLng([x, y]);
+        return mercator(p.lng, p.lat);
+      };
+      if (library === "maplibre" && !map.loaded())
+        await new Promise((resolve) => map.once("load", resolve));
+      const center = at(cx, cy),
+        right = at(cx + 100, cy);
+      return { center, resolution: (right[0] - center[0]) / 100 };
+    });
+  }
+  const reference = views.openlayers;
+  expect(reference.resolution).toBeCloseTo(2.1, 3);
+  for (const library of ["maplibre", "leaflet"]) {
+    // Same centre within a metre and same scale within 0.1 %.
+    expect(
+      Math.abs(views[library].center[0] - reference.center[0]),
+    ).toBeLessThan(1);
+    expect(
+      Math.abs(views[library].center[1] - reference.center[1]),
+    ).toBeLessThan(1);
+    expect(views[library].resolution / reference.resolution).toBeCloseTo(1, 3);
+  }
+});
+test("MAP-03: every map library shows a crosshair while matching points", async ({
+  page,
+}) => {
+  const cursorElement: Record<string, string> = {
+    openlayers: ".ol-viewport",
+    maplibre: ".maplibregl-canvas",
+    leaflet: ".leaflet-container",
+  };
+  for (const library of ["openlayers", "maplibre", "leaflet"]) {
+    await page.goto(`/?map=${library}`);
+    await page.getByRole("button", { name: "Try the Hamburg example" }).click();
+    await expect(page.locator(".rg-instruction")).toContainText(
+      "Click a recognizable spot in the image",
+    );
+    const cursor = () =>
+      page
+        .locator(cursorElement[library])
+        .first()
+        .evaluate((element) => getComputedStyle(element).cursor);
+    // The guided layout activates point matching after loading the image.
+    await expect.poll(cursor).toBe("crosshair");
+    expect(
+      await page
+        .locator("svg.rg-image-view")
+        .evaluate((element) => getComputedStyle(element).cursor),
+    ).toBe("crosshair");
+    // After alignment and confirmation the map navigates: the host cursor returns.
+    await page.evaluate(async (pairs) => {
+      const controller = window.demo.controller;
+      for (const pair of pairs)
+        controller.addGcp(
+          pair.image as [number, number],
+          pair.reference as [number, number],
+        );
+      await controller.refit();
+      controller.confirm();
+    }, matches);
+    await expect(page.locator(".rg-instruction")).toContainText(
+      "Download the result",
+    );
+    await expect.poll(cursor).not.toBe("crosshair");
+  }
+});
+test("MAP-04: wheel zoom keeps the map covered while tiles load", async ({
+  page,
+}) => {
+  const tile = await readFile("tests/fixtures/grid.png");
+  // Tiles arrive after realistic network latency.
+  await page.route(osmTiles, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    await route.fulfill({
+      body: tile,
+      contentType: "image/png",
+      // Never served from the browser cache: every tile pays the latency.
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "no-store",
+      },
+    });
+  });
+  for (const library of ["openlayers", "maplibre", "leaflet"]) {
+    await page.goto(`/?map=${library}`);
+    await page.waitForFunction(() => Boolean(window.demo?.map));
+    await page.waitForTimeout(1500);
+    const map = page.locator(".workshop-map");
+    const box = (await map.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    let worst = 0;
+    for (let i = 0; i < 12; i++) {
+      await page.mouse.wheel(0, i < 6 ? -100 : 100);
+      await page.waitForTimeout(40);
+      const shot = (await map.screenshot()).toString("base64");
+      // Share of pixels showing a map background instead of tile content.
+      const blank = await page.evaluate(async (data) => {
+        const image = new Image();
+        image.src = `data:image/png;base64,${data}`;
+        await image.decode();
+        const canvas = new OffscreenCanvas(image.width, image.height);
+        const context = canvas.getContext("2d")!;
+        context.drawImage(image, 0, 0);
+        const pixels = context.getImageData(
+          0,
+          0,
+          image.width,
+          image.height,
+        ).data;
+        const near = (p: number, rgb: number[]) =>
+          rgb.every((value, c) => Math.abs(pixels[p + c] - value) < 3);
+        let count = 0;
+        for (let p = 0; p < pixels.length; p += 4)
+          if (near(p, [221, 221, 221]) || near(p, [223, 229, 223])) count++;
+        return count / (pixels.length / 4);
+      }, shot);
+      worst = Math.max(worst, blank);
+    }
+    expect(worst, library).toBeLessThan(0.6);
+  }
 });

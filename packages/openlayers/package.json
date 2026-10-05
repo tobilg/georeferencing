@@ -1,0 +1,57 @@
+{
+  "name": "@georeferencing/openlayers",
+  "version": "0.4.0",
+  "description": "OpenLayers map adapter for georeferencing: overlay, control points, drawing, snapping and reference layers",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "peerDependencies": {
+    "@georeferencing/core": "workspace:^",
+    "ol": ">=10.10.0 <11"
+  },
+  "devDependencies": {
+    "@georeferencing/core": "workspace:*",
+    "typescript": "5.9.3",
+    "ol": "10.10.0"
+  },
+  "scripts": {
+    "build": "node ../../scripts/build-package.mjs openlayers",
+    "dev": "node ../../scripts/build-package.mjs openlayers --watch",
+    "typecheck": "tsc --noEmit --noUnusedLocals --noUnusedParameters",
+    "prepack": "pnpm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tobilg/georeferencing.git",
+    "directory": "packages/openlayers"
+  },
+  "homepage": "https://github.com/tobilg/georeferencing#readme",
+  "bugs": {
+    "url": "https://github.com/tobilg/georeferencing/issues"
+  },
+  "keywords": [
+    "georeferencing",
+    "openlayers",
+    "gis",
+    "typescript"
+  ]
+}

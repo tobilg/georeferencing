@@ -1,5 +1,5 @@
 /**
- * Low-level PDF report creation and optional OpenLayers map capture; pdf-lib loads lazily.
+ * Low-level PDF report creation with an optional captured map page; pdf-lib loads lazily.
  * Import from `@georeferencing/plugins/report`.
  * @module @georeferencing/plugins/report
  * @group @georeferencing/plugins
@@ -13,37 +13,10 @@ import {
   project,
 } from "@georeferencing/core";
 import type { Raster } from "@georeferencing/core/engine";
+import type { MapCapture } from "@georeferencing/core/map";
 import { accuracyReport } from "./serializers.js";
-/** Minimal view contract needed to annotate a captured map; OpenLayers View satisfies it. */
-export interface ReportView {
-  /** Current view projection. */
-  getProjection(): {
-    /** Explicit CRS identifier. */
-    getCode(): string;
-  };
-  /** Visible map extent in projection units, using the supplied viewport size. */
-  calculateExtent(size?: number[]): number[];
-  /** Current view rotation in radians. */
-  getRotation(): number;
-}
-
 /**
- * Borrowed canvas-map contract for optional PDF capture. OpenLayers Map implements
- * this structure; plugins do not require OpenLayers to be installed for raster-only reports.
- */
-export interface ReportMap {
-  /** Render currently available layers synchronously without changing the view. */
-  renderSync(): void;
-  /** Viewport dimensions in CSS pixels, or undefined while detached. */
-  getSize(): number[] | undefined;
-  /** Element containing rendered layer canvases and optional attribution. */
-  getViewport(): HTMLElement;
-  /** Current map view and projection metadata. */
-  getView(): ReportView;
-}
-/**
- * Options for a locally generated PDF report. Map capture is optional and requires a
- * browser DOM.
+ * Options for a locally generated PDF report. The map page is optional.
  */
 export interface ReportOptions {
   /**
@@ -64,14 +37,11 @@ export interface ReportOptions {
   /** Host projection definitions for report coordinate conversion and unit labels. */
   definitions?: Definitions;
   /**
-   * Optional current loaded OpenLayers canvas map frame. The report does not move the
-   * view or wait for all network layers; sources must permit CORS export.
+   * Optional captured host-map frame, for example from a map binding's `capture()` or
+   * `captureOpenLayersMap`. Omit for a report without the map page.
    */
-  map?: ReportMap;
-  /**
-   * Host-provided map attribution override. When omitted with map capture, existing map
-   * attribution text is used.
-   */
+  map?: MapCapture;
+  /** Attribution override for the captured map; defaults to `map.attribution`. */
   attribution?: string;
 }
 async function png(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -93,48 +63,6 @@ async function png(canvas: HTMLCanvasElement): Promise<Blob> {
   }
 }
 /**
- * Capture currently rendered canvas layers as PNG without changing the host view.
- *
- * Calls renderSync and copies available canvas content; does not await outstanding tiles or capture arbitrary DOM overlays. WebGL/non-canvas renderers are outside this capture contract.
- * @param map - Visible initialized host map.
- * @throws {@link "@georeferencing/core".GeoreferenceError} If the viewport is unavailable or a source taints canvas export.
- */
-export async function captureMap(map: ReportMap): Promise<Blob> {
-  map.renderSync();
-  const size = map.getSize();
-  if (!size || size[0] <= 0 || size[1] <= 0)
-    fail("REPORT_MAP", "Map has no visible viewport.");
-  const canvas = document.createElement("canvas");
-  canvas.width = size![0];
-  canvas.height = size![1];
-  const context = canvas.getContext("2d")!;
-  try {
-    for (const layer of map
-      .getViewport()
-      .querySelectorAll<HTMLCanvasElement>(".ol-layer canvas")) {
-      if (!layer.width || !layer.height) continue;
-      context.save();
-      context.globalAlpha = Number(
-        layer.parentElement?.style.opacity || layer.style.opacity || 1,
-      );
-      const transform = layer.style.transform;
-      if (transform && transform !== "none")
-        context.setTransform(new DOMMatrix(transform));
-      else
-        context.scale(
-          parseFloat(layer.style.width || String(layer.width)) / layer.width,
-          parseFloat(layer.style.height || String(layer.height)) / layer.height,
-        );
-      context.drawImage(layer, 0, 0);
-      context.restore();
-    }
-    return await png(canvas);
-  } finally {
-    canvas.width = 0;
-    canvas.height = 0;
-  }
-}
-/**
  * Create a local PDF with source identity, alignment diagnostics, GCPs, raster overview and an embedded full-precision alignment.json attachment. pdf-lib loads lazily.
  *
  * Training residuals are not independent accuracy measurements. The caller must pass document, fit and raster from the same alignment; use a controller export result for its exact revision.
@@ -153,16 +81,15 @@ export async function createPdfReport(
   const capturedMap = options.map
     ? {
         frame: {
-          crs: options.map.getView().getProjection().getCode(),
-          extent: options.map.getView().calculateExtent(options.map.getSize()),
-          rotation: options.map.getView().getRotation(),
+          crs: options.map.crs,
+          extent: options.map.extent,
+          rotation: options.map.rotation,
         },
         attribution:
           options.attribution ??
-          options.map.getViewport().querySelector(".ol-attribution")
-            ?.textContent ??
+          options.map.attribution ??
           "Attribution: supplied by the host map.",
-        blob: await captureMap(options.map),
+        blob: options.map.image,
       }
     : undefined;
   const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");

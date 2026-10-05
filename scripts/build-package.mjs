@@ -13,11 +13,12 @@ import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
+import { PUBLIC_PACKAGES } from "./packages.mjs";
 
 const workspaceRoot = fileURLToPath(new URL("..", import.meta.url));
 const name = process.argv[2];
-if (!["core", "plugins", "react"].includes(name))
-  throw Error("Expected package name: core, plugins or react");
+if (!PUBLIC_PACKAGES.includes(name))
+  throw Error(`Expected package name: ${PUBLIC_PACKAGES.join(", ")}`);
 const packageRoot = join(workspaceRoot, "packages", name);
 const require = createRequire(join(packageRoot, "package.json"));
 const watching = process.argv.includes("--watch");

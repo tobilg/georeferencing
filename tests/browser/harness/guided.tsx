@@ -1,5 +1,6 @@
 import { createWorkerEngine } from "@georeferencing/core/engine";
 import GeoreferencingWorker from "@georeferencing/core/worker?worker";
+import { openLayers } from "@georeferencing/openlayers";
 import {
   ALL_CONTROLS,
   Georeferencer,
@@ -42,6 +43,7 @@ function App() {
         }),
       }),
   );
+  const [adapter] = useState(() => openLayers(map));
   const [controller] = useState(
     () =>
       new GeoreferencerController({
@@ -67,7 +69,7 @@ function App() {
   return (
     <Georeferencer
       controller={controller}
-      referenceMap={map}
+      map={adapter}
       controls={all ? ALL_CONTROLS : undefined}
       referenceView={
         <div

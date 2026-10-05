@@ -68,8 +68,11 @@ origin and downward Y; the first pixel centre is `(0.5, 0.5)`.
 
 ## Integration boundaries
 
-The host supplies projection definitions and required NTv2 grids, reference
-authentication and persistence. There is no automatic datum-grid download.
+The host supplies the map and its library (OpenLayers, MapLibre GL JS or Leaflet
+through a map adapter, or a custom adapter), projection definitions and required NTv2
+grids, reference authentication and persistence. Adapter capabilities differ: WFS GML
+and borrowed host layers need the OpenLayers adapter, and PDF map pages are not
+available with Leaflet; see the [map adapters guide](./map-adapters.md). There is no automatic datum-grid download.
 Antimeridian/wrapped extents and geometries are rejected; hosts can split reference
 queries in a custom loader. Drawing uses Point, LineString and Polygon; existing
 holes are preserved, but dedicated hole creation and multipart editing are not

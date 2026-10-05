@@ -9,8 +9,15 @@
       "@georeferencing/core/encoder-worker": [
         "../core/src/engine/encoder-worker.ts"
       ],
-      "@georeferencing/core/openlayers": ["../core/src/openlayers/index.ts"]
+      "@georeferencing/core/map": ["../core/src/map/index.ts"]
     }
   },
-  "include": ["../core/src", "../react/src", "../plugins/src"]
+  "include": [
+    "../core/src",
+    "../react/src",
+    "../plugins/src",
+    "../openlayers/src",
+    "../maplibre/src",
+    "../leaflet/src"
+  ]
 }

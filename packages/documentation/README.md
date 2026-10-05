@@ -7,7 +7,7 @@ processing in `@georeferencing/core`, optional local exports in
 This README is the operating guide for the private
 **`@georeferencing/documentation`** workspace; the website's landing page is
 [`landing.md`](./landing.md), which documents only the public packages. The site is
-generated directly from the three public packages' TypeScript comments, alongside
+generated directly from the six public packages' TypeScript comments, alongside
 handwritten guides and typechecked code examples. The same API comments ship in
 published `.d.ts` files for editor help. This workspace is not published to npm.
 
@@ -15,9 +15,12 @@ published `.d.ts` files for editor help. This workspace is not published to npm.
 
 | Package | Responsibility | Publication |
 | --- | --- | --- |
-| `@georeferencing/core` | Documents, fitting/warping, worker processing, references, map binding and host-save coordination | Public library |
+| `@georeferencing/core` | Documents, fitting/warping, worker processing, references, the map-adapter contract and host-save coordination | Public library |
 | `@georeferencing/plugins` | Opt-in GeoTIFF, JPEG, PDF and data exports | Public library |
 | `@georeferencing/react` | Ready-made editor, composable panels, hook and scoped styles | Public library |
+| `@georeferencing/openlayers` | OpenLayers map adapter | Public library |
+| `@georeferencing/maplibre` | MapLibre GL JS map adapter | Public library |
+| `@georeferencing/leaflet` | Leaflet map adapter | Public library |
 | `@georeferencing/demo` | Synthetic host integration and browser-validation pages | Private app |
 | `@georeferencing/documentation` | This generated API site and guides | Private site |
 
@@ -58,7 +61,8 @@ and the [demo](https://github.com/tobilg/georeferencing/blob/main/packages/demo/
 | --- | --- |
 | `@georeferencing/core` (also `/core`) | Serializable documents, controller, transforms, projections, geometry and interchange |
 | `@georeferencing/core/engine` | Lazy processing workers, raster helpers and scheduler |
-| `@georeferencing/core/openlayers` | Host-map integration, reference providers and WFS discovery |
+| `@georeferencing/core/map` | Map-adapter contract, shared reference sources, WFS discovery and adapter helpers |
+| `@georeferencing/openlayers`, `@georeferencing/maplibre`, `@georeferencing/leaflet` | Map adapters for OpenLayers, MapLibre GL JS and Leaflet |
 | `@georeferencing/core/worker` | Bundled processing-worker asset |
 | `@georeferencing/core/encoder-worker` | Optional custom raster codec-worker protocol |
 | `@georeferencing/plugins` | Lazy factories and types, also available through `/geotiff`, `/jpeg`, `/pdf` and `/data` |
@@ -121,7 +125,7 @@ provides static navigation, search and light/dark presentation.
 | `dist/` | Generated HTML, assets and search index; ignored build output |
 
 The configured source entries cover core's headless, engine, encoder protocol and
-OpenLayers APIs; React's editor/panels; and the plugin root, format factories,
+map-adapter APIs; the OpenLayers, MapLibre and Leaflet adapters; React's editor/panels; and the plugin root, format factories,
 TIFF encoder, pure serializers and PDF report APIs. Private/protected/internal/external symbols are
 excluded. Source links point at the repository's `main` branch. The published site is
 deployed from each release tag.
@@ -173,7 +177,7 @@ pnpm test:docs
 The browser check requires Playwright Chromium. If it is absent, install it using
 `pnpm exec playwright install chromium` on a machine permitting downloads.
 The checker serves the generated output under `/api/`, traverses local links,
-assets and anchors, verifies source links for all three public packages, and
+assets and anchors, verifies source links for all six public packages, and
 exercises guide code, navigation and search. It writes a local result artifact to
 `artifacts/reports/documentation-validation.json`.
 

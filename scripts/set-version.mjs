@@ -1,13 +1,14 @@
 // Set one release version on all public packages, the documentation workspace and
 // the engine identifier. Usage: node scripts/set-version.mjs 0.1.0-alpha.3
 import { readFileSync, writeFileSync } from "node:fs";
+import { PUBLIC_PACKAGES } from "./packages.mjs";
 
 const version = process.argv[2];
 if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version ?? ""))
   throw Error("Expected a semver version, e.g. 0.1.0-alpha.3 or 1.0.0");
 
 const root = new URL("..", import.meta.url);
-for (const name of ["core", "plugins", "react", "documentation"]) {
+for (const name of [...PUBLIC_PACKAGES, "documentation"]) {
   const file = new URL(`packages/${name}/package.json`, root);
   const manifest = JSON.parse(readFileSync(file, "utf8"));
   manifest.version = version;

@@ -1,4 +1,4 @@
-// Let long import paths in the sidebar (such as @georeferencing/core/openlayers) wrap
+// Let long import paths in the sidebar (such as @georeferencing/plugins/serializers) wrap
 // after "/" instead of being clipped. TypeDoc builds the navigation with JavaScript, so
 // labels are adjusted whenever navigation nodes are added.
 const pathBreak = "/​";

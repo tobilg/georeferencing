@@ -9,11 +9,6 @@ export type { WorldFileOptions } from "./data.js";
 export { accuracy, points, session, worldFile } from "./data.js";
 export { geoTiff } from "./geotiff.js";
 export { jpeg } from "./jpeg.js";
-export type {
-  PdfOptions,
-  ReportMap,
-  ReportOptions,
-  ReportView,
-} from "./pdf.js";
+export type { PdfOptions, ReportOptions } from "./pdf.js";
 export { pdf } from "./pdf.js";
 export type { JpegOptions, RasterPluginOptions } from "./types.js";

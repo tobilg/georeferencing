@@ -74,6 +74,7 @@ export class GeoreferencerController {
   private file: File | null = null;
   private previewBlob: Blob | null = null;
   private detailBlob: Blob | null = null;
+  private previewCrs: string | null = null;
   private detailAbort?: AbortController;
   private imageHistory = new ViewHistory<[number, number, number, number]>();
   private imageHistoryTimer?: ReturnType<typeof setTimeout>;
@@ -359,7 +360,7 @@ export class GeoreferencerController {
           fit: fit!,
           workingCrs: d.workingCrs,
           output: {
-            crs: d.workingCrs,
+            crs: this.previewCrs ?? d.workingCrs,
             resampler: d.output.resampler,
             sourceNoData: d.output.sourceNoData,
             noData: d.output.noData,
@@ -383,6 +384,22 @@ export class GeoreferencerController {
         this.reportError(e);
       }
     }
+  }
+  /**
+   * Render previews in a display CRS instead of the working CRS. Map adapters for
+   * libraries that cannot reproject raster overlays (MapLibre, Leaflet) set their map
+   * projection here so overlay corners are exact; fitting, residuals and exports keep
+   * using the working CRS. An existing preview is re-rendered. Not part of the document.
+   * @param crs - Display CRS, or null to render in the working CRS again.
+   */
+  setPreviewCrs(crs: string | null): void {
+    if (crs === this.previewCrs) return;
+    if (crs !== null && !crs.trim())
+      fail("CRS", "Preview CRS must not be empty.");
+    this.previewCrs = crs;
+    // With a pending pair the next fit applies the new CRS; refitting now would fail.
+    if (this.state.fit && !this.state.pendingImagePoint) void this.refit();
+    else if (!this.state.fit) this.autoRefit();
   }
   /**
    * Set or cancel the image endpoint of an unfinished pair. Requires image bytes and

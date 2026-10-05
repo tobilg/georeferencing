@@ -1,7 +1,7 @@
 {
   "name": "@georeferencing/core",
-  "version": "0.3.0",
-  "description": "Headless browser georeferencing state, transforms, image processing and OpenLayers integration",
+  "version": "0.4.0",
+  "description": "Headless browser georeferencing state, transforms, image processing and a map-adapter contract",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -25,9 +25,9 @@
       "types": "./dist/engine/index.d.ts",
       "import": "./dist/engine/index.js"
     },
-    "./openlayers": {
-      "types": "./dist/openlayers/index.d.ts",
-      "import": "./dist/openlayers/index.js"
+    "./map": {
+      "types": "./dist/map/index.d.ts",
+      "import": "./dist/map/index.js"
     },
     "./worker": "./dist/engine/worker.js",
     "./encoder-worker": {
@@ -38,9 +38,6 @@
   "engines": {
     "node": ">=22.12.0"
   },
-  "peerDependencies": {
-    "ol": ">=10.10.0 <11"
-  },
   "dependencies": {
     "@types/geojson": "^7946.0.16",
     "ml-matrix": "^6.12.1",
@@ -48,7 +45,6 @@
   },
   "devDependencies": {
     "@types/node": "22.19.15",
-    "ol": "10.10.0",
     "typescript": "5.9.3",
     "geotiff": "3.0.5",
     "jpeg-js": "0.4.4"
@@ -73,15 +69,11 @@
   },
   "keywords": [
     "georeferencing",
-    "react",
-    "openlayers",
     "geotiff",
     "gis",
-    "typescript"
-  ],
-  "peerDependenciesMeta": {
-    "ol": {
-      "optional": true
-    }
-  }
+    "typescript",
+    "maplibre",
+    "leaflet",
+    "openlayers"
+  ]
 }

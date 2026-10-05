@@ -2,7 +2,13 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["node", "vite/client"]
+    "types": ["node", "vite/client"],
+    "paths": {
+      "@georeferencing/core": ["./packages/core/src/core/index.ts"],
+      "@georeferencing/core/core": ["./packages/core/src/core/index.ts"],
+      "@georeferencing/core/engine": ["./packages/core/src/engine/index.ts"],
+      "@georeferencing/core/map": ["./packages/core/src/map/index.ts"]
+    }
   },
   "include": ["tests", "vitest.config.ts", "playwright.config.ts"]
 }

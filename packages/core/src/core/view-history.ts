@@ -1,7 +1,8 @@
 /**
- * Bounded back/forward navigation history. Recording after stepping back discards the
- * forward entries; consecutive equal entries are recorded once.
- * @internal
+ * Bounded back/forward navigation history, used for image and map view history.
+ * Recording after stepping back discards the forward entries; consecutive equal entries
+ * are recorded once.
+ * @typeParam T - Recorded view state.
  */
 export class ViewHistory<T> {
   private entries: T[] = [];

@@ -2,12 +2,16 @@
 
 Headless image georeferencing for browser applications. Core owns serializable
 sessions, control points, transformation fitting, raster warping, revision-safe
-processing, feature drafts and host persistence callbacks. It also provides
-optional adapters for an existing OpenLayers map.
+processing, feature drafts and host persistence callbacks. It also defines the
+map-adapter contract that connects an editor to an existing host map.
 
 Image processing runs locally in browser workers. Reference services and saving
-are supplied by the host. Core has no React or PDF dependency and enables no file
-export formats by default. Use
+are supplied by the host. Core has no map library, React or PDF dependency and
+enables no file export formats by default. Use an adapter package —
+[`@georeferencing/openlayers`](https://github.com/tobilg/georeferencing/tree/main/packages/openlayers),
+[`@georeferencing/maplibre`](https://github.com/tobilg/georeferencing/tree/main/packages/maplibre)
+or [`@georeferencing/leaflet`](https://github.com/tobilg/georeferencing/tree/main/packages/leaflet) —
+to connect a map,
 [`@georeferencing/react`](https://github.com/tobilg/georeferencing/tree/main/packages/react)
 for an editor UI and
 [`@georeferencing/plugins`](https://github.com/tobilg/georeferencing/tree/main/packages/plugins)
@@ -17,20 +21,18 @@ for optional GeoTIFF, JPEG, PDF and data downloads.
 
 ```sh
 pnpm add @georeferencing/core
-# Only when using the OpenLayers adapters:
-pnpm add ol@10
 ```
 
 The package ships ESM and TypeScript declarations with TypeDoc comments. Node.js
-22.12 or newer is the declared tooling requirement. OpenLayers is an optional
-peer with the verified range `>=10.10.0 <11`; headless consumers need no map library.
+22.12 or newer is the declared tooling requirement. Core has no peer dependencies;
+map libraries are peers of the adapter packages only.
 Browser processing requires module workers, File/Blob, OffscreenCanvas and Web
 Crypto in a secure context. Importing the package and constructing an engine are
 SSR-safe; start image processing on the client.
 
-`@georeferencing/core`, `@georeferencing/plugins` and `@georeferencing/react` are
-released together. **Install the same version of every `@georeferencing/*` package**
-and upgrade them together. Plugins and React declare core as a peer dependency, so
+All `@georeferencing/*` packages are released together. **Install the same version
+of every `@georeferencing/*` package** and upgrade them together. Every other package
+declares core as a peer dependency, so
 they use your application's copy; mismatched versions are reported as peer-dependency
 conflicts instead of installing a second core whose proj4 projection registry would be
 invisible to the first. See
@@ -45,7 +47,7 @@ API reference and guides: **[georeferencing-api-docs.gh.tobilg.com](https://geor
 | `@georeferencing/core` | Controller, documents, GCPs, transforms, projections, geometry validation, interchange and export contracts |
 | `@georeferencing/core/core` | Alias for the root headless API |
 | `@georeferencing/core/engine` | Lazy worker engine, shared scheduler, raster types and numerical raster helpers |
-| `@georeferencing/core/openlayers` | Map attachment, reference providers, WFS discovery and geometry conversion |
+| `@georeferencing/core/map` | Map-adapter contract, shared reference sources (WFS, GeoJSON, custom loaders), WFS discovery and helpers for adapter authors |
 | `@georeferencing/core/worker` | Bundled processing worker asset for bundler imports or custom deployment |
 | `@georeferencing/core/encoder-worker` | Protocol for implementing an optional raster codec worker |
 
@@ -54,6 +56,10 @@ ordinary modules. The core render operation returns RGBA pixels; file encoding
 is a separate optional plugin operation.
 
 ## Create a headless session
+
+The [core usage guide](https://georeferencing-api-docs.gh.tobilg.com/Using_core_without_React/)
+walks through a complete page without React: state, the editing workflow, a map
+adapter, sessions and cleanup.
 
 Create one stable controller per editor session. Inject real host services where
 needed; this example supplies no persistence implementation or automatic discard
@@ -186,7 +192,7 @@ not cancel already submitted host save requests.
 | Image | Original-resolution pixels after EXIF normalization; top-left corner `(0, 0)`, y down, first pixel centre `(0.5, 0.5)` |
 | GCP target/reference | Coordinate snapshot with an explicit CRS; reference refresh never moves an existing pair |
 | Working | Explicit CRS used for fitting, residual units and aligned preview |
-| Map view | Host OpenLayers projection, independently configured |
+| Map view | Host map projection (OpenLayers, MapLibre GL or Leaflet), independently configured |
 | Raster output | `document.output.crs`, resolution and optional outer-edge bounds |
 | Features | RFC 7946 longitude/latitude by default; explicit adapters for other coordinates |
 
@@ -215,57 +221,48 @@ for formulas, source comparisons and supported edge cases.
 
 ## Attach a map and configure references
 
-The host supplies an initialized visible map. Attach once, then detach during
-cleanup. The ready-made React editor already performs this attachment; do not
-also call `attachReferenceMap` for the same editor.
+Core connects to a host map through a **map adapter**: a function that attaches a
+controller to one map and returns a `MapBinding` (`detach`, `fitOverlay`,
+`cancelDrawing`, plus optional `resize`, `finishDrawing`, `navigateHistory` and
+`capture`). The contract lives in `@georeferencing/core/map`; ready-made adapters are
+separate packages:
+
+| Adapter | Package | Notes |
+| --- | --- | --- |
+| `openLayers(map, options)` | `@georeferencing/openlayers` | Any projection, WFS GML, borrowed host layers |
+| `maplibre(map, options)` | `@georeferencing/maplibre` | Web Mercator previews, drawing with Terra Draw |
+| `leaflet(map, { lib: L, ... })` | `@georeferencing/leaflet` | Previews in the map CRS, drawing with Terra Draw |
+
+The React editor takes an adapter as its `map` prop. Without React, call the adapter
+(or the package's attach function: `attachReferenceMap`, `attachMapLibre` or
+`attachLeaflet`) with the controller and `detach()` the binding on cleanup:
 
 ```ts
-import type { GeoreferencerController, Extent } from "@georeferencing/core";
-import { attachReferenceMap, type WfsReference } from "@georeferencing/core/openlayers";
+import type { GeoreferencerController } from "@georeferencing/core";
+import { openLayers } from "@georeferencing/openlayers";
 import type OLMap from "ol/Map.js";
 
-export function attachEditor(
-  map: OLMap,
-  controller: GeoreferencerController,
-  service: { url: string; typeNames: string[]; bounds: Extent },
-) {
-  const reference: WfsReference = {
-    kind: "wfs",
-    id: "host-reference",
-    label: "Host reference features",
-    url: service.url,
-    version: "2.0.0",
-    typeNames: service.typeNames,
-    requestCrs: "EPSG:3857",
-    responseCrs: "EPSG:3857",
-    axisOrder: "xy",
-    responseFormat: "geojson",
-    loading: "viewport",
-    queryBounds: { extent: service.bounds, crs: "EPSG:3857" },
-    pageSize: 500,
-    maxFeatures: 5000,
-    snapping: { vertices: true, tolerancePx: 10 },
-    request: (url, init) => fetch(url, { ...init, credentials: "include" }),
-  };
-  const binding = attachReferenceMap(map, controller, { references: [reference] });
+export function attachEditor(map: OLMap, controller: GeoreferencerController) {
+  const binding = openLayers(map, { references: [] })(controller);
   return () => binding.detach();
 }
 ```
 
-This example assumes projected xy GeoJSON service coordinates. Configure the
-actual service CRS, axis conventions and supported output format. Viewport queries
-follow map navigation and intersect optional provider bounds. Preserve the
-request's AbortSignal when injecting authentication. WFS 1.1 paging requires
-explicit support for `startIndex`; truncation and service exceptions are visible.
-GeoJSON and GML providers, stable IDs, response-byte limits and capabilities/schema
-discovery are described in the
-[reference guide](https://github.com/tobilg/georeferencing/blob/main/packages/documentation/guides/reference-data.md).
+Reference sources are shared by all adapters and defined in
+`@georeferencing/core/map`: `wfs` (WFS 1.1/2.0 with paging, budgets, explicit axis
+order and an injectable `request` for authentication), `geojson` (static data with a
+CRS) and `custom` (an abortable viewport loader returning data and its CRS). GCP
+snapping and drawing snapping are configured separately. Manual target entry still
+works when a reference loader fails. GML responses and borrowed host layers need the
+OpenLayers adapter. See the
+[map adapters guide](https://georeferencing-api-docs.gh.tobilg.com/Map_adapters/) and the
+[reference guide](https://georeferencing-api-docs.gh.tobilg.com/Reference_data/).
 
-Other providers are `existing-vector` (borrow an existing layer without duplicate
-requests or ownership), `geojson` (static data with a CRS), and `custom` (an
-abortable viewport loader returning data and its CRS). GCP snapping and drawing
-snapping are separately configured. Manual target entry still works when a
-reference loader fails.
+`@georeferencing/core/map` also exports the helpers the bundled adapters use, for
+writing an adapter for another map library: `subscribeBinding`, `watchReferences`,
+`loadReferenceData`, `snapToReferences`, `imageViewToExtent`, `extentToImageView`,
+`ViewHistory` and `sharedProj4`. `controller.setPreviewCrs(crs)` renders previews in
+the map's display projection for libraries that cannot reproject raster overlays.
 
 ## Digitizing and host persistence
 
@@ -325,12 +322,11 @@ is required. CSP must allow the worker URL and blob image previews.
 
 ```ts
 import { createJobScheduler, createWorkerEngine } from "@georeferencing/core/engine";
-import { registerProjections } from "@georeferencing/core/openlayers";
 
 const definitions = {
   "EPSG:25832": "+proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs +type=crs",
 };
-registerProjections(definitions);
+// Pass the same definitions to the map adapter options.
 export const engine = createWorkerEngine({
   definitions,
   workerUrl: "/my-app/assets/georeferencing-worker.js",
@@ -343,8 +339,8 @@ Use projection definitions appropriate to your own data. EPSG:4326 and EPSG:3857
 are built in; other identifiers do not automatically download definitions. The
 engine exposes its effective `limits`; the controller uses `limits.maxGcps` to reject
 control-point edits before fitting. Pass
-identical definitions and any licensed NTv2 `datumGrids` to the engine and map
-binding. Share one scheduler across engines when bounding total concurrent workers.
+identical definitions and any licensed NTv2 `datumGrids` to the engine and the map
+adapter. Share one scheduler across engines when bounding total concurrent workers.
 
 | Default limit | Value |
 | --- | ---: |

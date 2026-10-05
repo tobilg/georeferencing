@@ -54,7 +54,9 @@ for (const [path, html] of htmlByFile) {
     const link = new URL(decodeHtml(raw), url);
     if (link.origin !== origin) {
       if (
-        /\/blob\/main\/packages\/(core|plugins|react)\/src\//.test(link.href)
+        /\/blob\/main\/packages\/(core|plugins|react|openlayers|maplibre|leaflet)\/src\//.test(
+          link.href,
+        )
       ) {
         sourceLinks.push(link.href);
       }
@@ -73,7 +75,14 @@ for (const [path, html] of htmlByFile) {
   }
 }
 assert(sourceLinks.length > 100, "Expected source links to the workspaces");
-for (const name of ["core", "plugins", "react"]) {
+for (const name of [
+  "core",
+  "plugins",
+  "react",
+  "openlayers",
+  "maplibre",
+  "leaflet",
+]) {
   assert(
     sourceLinks.some((link) => link.includes(`/packages/${name}/src/`)),
     `Missing source links for ${name}`,
@@ -141,6 +150,9 @@ try {
     "@georeferencing/core",
     "@georeferencing/plugins",
     "@georeferencing/react",
+    "@georeferencing/openlayers",
+    "@georeferencing/maplibre",
+    "@georeferencing/leaflet",
   ]);
   assert(
     !(await navigation.innerText()).includes("packages/"),
@@ -175,7 +187,7 @@ try {
       })
       .first(),
   ).toBeVisible();
-  await page.goto(`${base}_georeferencing/core/openlayers/WfsReference/`);
+  await page.goto(`${base}_georeferencing/core/map/WfsReference/`);
   await expect(
     page.getByRole("heading", { name: "Interface WfsReference", exact: false }),
   ).toBeVisible();
@@ -187,6 +199,10 @@ try {
     "plugins/pdf/pdf",
     "plugins/tiff/encodeGeoTiffBlob",
     "plugins/report/createPdfReport",
+    "core/map/watchReferences",
+    "openlayers/openLayers",
+    "maplibre/maplibre",
+    "leaflet/leaflet",
   ]) {
     await page.goto(`${base}_georeferencing/${route}/`);
     await expect(page.getByRole("heading", { level: 1 })).toContainText(

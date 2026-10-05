@@ -5,8 +5,9 @@ normalized-image world files, JSON sessions, QGIS control points and accuracy
 reports. Each format is enabled explicitly through controller configuration.
 Heavy implementations load when the user requests an export.
 
-This package has no React or OpenLayers dependency. The optional PDF map contract
-is structural and accepts an OpenLayers map. The React editor reads the same
+This package has no React or map-library dependency. The optional PDF map page takes
+a capture function, which every map adapter that supports capture provides. The React
+editor reads the same
 controller registry to display only configured export actions.
 
 ## Installation and package selection
@@ -14,7 +15,7 @@ controller registry to display only configured export actions.
 ```sh
 pnpm add @georeferencing/core @georeferencing/plugins
 # Add the UI only if needed:
-pnpm add @georeferencing/react react@19 react-dom@19 ol@10
+pnpm add @georeferencing/react @georeferencing/openlayers react@19 react-dom@19 ol@10
 ```
 
 The package ships ESM, TypeScript declarations and codec-worker assets. Node.js
@@ -216,21 +217,32 @@ parameters, source/revision information and an embedded full-precision JSON
 attachment. It is a report, not a geospatial PDF raster export.
 
 Options include `paper` (`A4`, `A3`, `Letter`), `landscape`, `margin` in PDF points,
-projection `definitions`, `attribution` and an optional `map` or map accessor.
+projection `definitions`, `attribution` and an optional `capture` function for a map
+page.
 
 ```ts
-import { pdf, type ReportMap } from "@georeferencing/plugins/pdf";
+import { captureOpenLayersMap } from "@georeferencing/openlayers";
+import { pdf } from "@georeferencing/plugins/pdf";
+import type OLMap from "ol/Map.js";
 
-export function mapReport(currentMap: () => ReportMap | undefined) {
-  return pdf({ map: currentMap, paper: "A4", margin: 40 });
+export function mapReport(currentMap: () => OLMap | undefined) {
+  return pdf({
+    capture: () => {
+      const map = currentMap();
+      return map ? captureOpenLayersMap(map) : undefined;
+    },
+    paper: "A4",
+    margin: 40,
+  });
 }
 ```
 
-The accessor resolves the current map at export time. Capture uses currently
-loaded canvas layers without moving the view or waiting for pending tiles. Map
-sources must permit CORS canvas export. WebGL-only renderers and arbitrary DOM
-overlays are outside this capture contract. Omit `map` for an aligned-raster-only
-report. PDF cancellation discards a late result but cannot interrupt synchronous
+`capture` runs when the export starts and returns a `MapCapture` (image, CRS, extent,
+rotation, attribution) or undefined to skip the map page. Use `captureOpenLayersMap`,
+`captureMapLibreMap` or a map binding's `capture()`; Leaflet maps cannot be captured
+because their tiles are DOM images. Capture uses the currently rendered map without
+moving the view or waiting for pending tiles, and map sources must permit CORS canvas
+export. Omit `capture` for an aligned-raster-only report. PDF cancellation discards a late result but cannot interrupt synchronous
 PDF generation or undo a module download.
 
 The `worldFile()` plugin exports orientation-normalized original-resolution PNG

@@ -15,6 +15,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium } from "@playwright/test";
 import { build as bundle } from "esbuild";
+import { PUBLIC_PACKAGES } from "./packages.mjs";
 
 const root = process.cwd();
 mkdirSync("artifacts", { recursive: true });
@@ -24,7 +25,7 @@ execFileSync(process.execPath, ["scripts/check-package-contents.mjs"], {
 });
 const corePkg = JSON.parse(readFileSync("packages/core/package.json", "utf8"));
 const packs = Object.fromEntries(
-  ["core", "plugins", "react"].map((name) => {
+  PUBLIC_PACKAGES.map((name) => {
     const filename = `georeferencing-${name}-${corePkg.version}.tgz`;
     const bytes = readFileSync(resolve("artifacts", filename));
     return [
@@ -54,7 +55,18 @@ writeFileSync(
   JSON.stringify(
     {
       ...pkg,
-      dependencies: { ...pkg.dependencies, ...packageFiles },
+      // The React consumer renders with the OpenLayers adapter and imports the others.
+      dependencies: {
+        ...pkg.dependencies,
+        ...Object.fromEntries(
+          ["core", "plugins", "react", "openlayers", "maplibre", "leaflet"].map(
+            (name) => [
+              `@georeferencing/${name}`,
+              packageFiles[`@georeferencing/${name}`],
+            ],
+          ),
+        ),
+      },
     },
     null,
     2,
@@ -91,9 +103,10 @@ for (const [file, documentedContract] of [
   ["core/types.d.ts", "Versioned, JSON-serializable editor document"],
   ["core/transform.d.ts", "Training RMSE"],
   ["engine/index.d.ts", "Create an SSR-safe engine"],
+  ["map/references.d.ts", "Explicit read-only WFS provider configuration"],
   [
-    "openlayers/references.d.ts",
-    "Explicit read-only WFS provider configuration",
+    "map/binding.d.ts",
+    "Live connection between one controller and one host map",
   ],
 ]) {
   const declaration = readFileSync(join(installedCore, "dist", file), "utf8");
@@ -118,12 +131,31 @@ assert(
     "Register lazy GeoTIFF export",
   ),
 );
+assert(
+  readFileSync(
+    join(directory, "node_modules/@georeferencing/openlayers/dist/index.d.ts"),
+    "utf8",
+  ).includes("MapAdapter} for an OpenLayers map"),
+  "Missing published TypeDoc in @georeferencing/openlayers",
+);
+for (const [name, contract] of [
+  ["maplibre", "MapAdapter} for a MapLibre GL JS map"],
+  ["leaflet", "MapAdapter} for a Leaflet map"],
+])
+  assert(
+    readFileSync(
+      join(directory, "node_modules/@georeferencing", name, "dist/index.d.ts"),
+      "utf8",
+    ).includes(contract),
+    `Missing published TypeDoc in @georeferencing/${name}`,
+  );
 assert(!existsSync(join(installedCore, "dist/react")));
 assert(!existsSync(join(installedCore, "dist/engine/tiff.js")));
 assert.equal(installedManifest.dependencies["pdf-lib"], undefined);
 assert.equal(installedManifest.dependencies.geotiff, undefined);
 assert.equal(installedManifest.dependencies["jpeg-js"], undefined);
-assert.equal(installedManifest.peerDependencies.react, undefined);
+// Core is map- and UI-independent: no React, OpenLayers or other map-library peers.
+assert.equal(installedManifest.peerDependencies, undefined);
 const reactManifest = JSON.parse(
   readFileSync(join(installedReact, "package.json"), "utf8"),
 );
@@ -132,7 +164,14 @@ assert.equal(
   undefined,
 );
 // Core is a peer, so applications always share one core and one projection registry.
-for (const installed of [installedReact, installedPlugins]) {
+const installedAdapters = ["openlayers", "maplibre", "leaflet"].map((name) =>
+  join(directory, "node_modules/@georeferencing", name),
+);
+for (const installed of [
+  installedReact,
+  installedPlugins,
+  ...installedAdapters,
+]) {
   const manifest = JSON.parse(
     readFileSync(join(installed, "package.json"), "utf8"),
   );

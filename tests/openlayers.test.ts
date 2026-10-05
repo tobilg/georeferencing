@@ -4,7 +4,7 @@ import { GeoreferencerController } from "../packages/core/src/core/controller.js
 import type { Document } from "../packages/core/src/core/types.js";
 import { createDocument } from "../packages/core/src/core/types.js";
 import type { Engine } from "../packages/core/src/engine/index.js";
-import { attachReferenceMap } from "../packages/core/src/openlayers/index.js";
+import { attachReferenceMap } from "../packages/openlayers/src/index.js";
 
 /** Minimal OpenLayers map double: owned layers, interactions and view events. */
 function fakeMap(code = "EPSG:3857") {
@@ -28,6 +28,7 @@ function fakeMap(code = "EPSG:3857") {
     calculateExtent: () => [-1000, -1000, 1000, 1000],
     fit: vi.fn(),
   };
+  const viewport = { style: { cursor: "" } };
   const map = {
     layers,
     interactions,
@@ -42,6 +43,7 @@ function fakeMap(code = "EPSG:3857") {
     getView: () => view,
     getSize: () => [100, 100],
     getTargetElement: () => null,
+    getViewport: () => viewport,
     getPixelFromCoordinate: (c: number[]) => c,
     on: (type: string, listener: () => void) => {
       if (!listeners.has(type)) listeners.set(type, new Set());

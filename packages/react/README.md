@@ -1,36 +1,38 @@
 # @georeferencing/react
 
 React 19 components and hooks for georeferencing local images on an existing
-OpenLayers map. This package provides the ready-made editor, composable panels,
+OpenLayers, MapLibre GL or Leaflet map, connected through a map adapter. This package provides the ready-made editor, composable panels,
 subscription hook, unsaved-work dialog and scoped styles.
 
 The authoritative session and processing engine live in
 [`@georeferencing/core`](https://github.com/tobilg/georeferencing/tree/main/packages/core).
 Optional exports come from
 [`@georeferencing/plugins`](https://github.com/tobilg/georeferencing/tree/main/packages/plugins).
-React has no runtime dependency on plugins or pdf-lib: it displays formats
-configured on the controller.
+React has no runtime dependency on plugins, pdf-lib or any map library: it displays
+formats configured on the controller and attaches the map adapter you pass.
 
 ## Installation and compatibility
 
 ```sh
-pnpm add @georeferencing/core @georeferencing/react react@19 react-dom@19 ol@10
+pnpm add @georeferencing/core @georeferencing/react react@19 react-dom@19
+# A map adapter, for example OpenLayers (or @georeferencing/maplibre, @georeferencing/leaflet):
+pnpm add @georeferencing/openlayers ol@10
 # Optional output formats:
 pnpm add @georeferencing/plugins
 # TypeScript React applications also need the React declarations:
 pnpm add -D @types/react@19 @types/react-dom@19
 ```
 
-Verified peer ranges are React/React DOM `>=19.3.0 <20` and OpenLayers
-`>=10.10.0 <11`. The host owns these libraries and its map. Packages ship ESM and
+Verified peer ranges are React/React DOM `>=19.3.0 <20`; map-library ranges are peers
+of the adapter packages. The host owns these libraries and its map. Packages ship ESM and
 TypeDoc-bearing TypeScript declarations. Node.js 22.12+ is the declared tooling
 requirement; the repository uses pnpm 12.x.
 
 Importing the package is SSR-safe. Create maps and start browser processing only
 on the client.
 
-**Install the same version of `@georeferencing/react`, `@georeferencing/core` and
-`@georeferencing/plugins`**, and upgrade them together. React declares core as a peer
+**Install the same version of `@georeferencing/react`, `@georeferencing/core`,
+`@georeferencing/plugins` and your map adapter**, and upgrade them together. React declares core as a peer
 dependency and re-exports its controller; a mismatched version is reported as a
 peer-dependency conflict rather than installing a second core with a separate
 projection registry. See
@@ -39,15 +41,18 @@ projection registry. See
 ## Integrate with a host-owned map
 
 The map must already have a visible target, dimensions and initialized view. Make
-one stable controller/engine per session, and inject your real save service.
+one stable controller/engine per session, and inject your real save service. Create
+the map adapter once per map (here with `useMemo`): a new adapter re-attaches the map.
 This example needs no export plugin and sends geographic features to the host.
 
 ```tsx
 import type { ControllerOptions } from "@georeferencing/core";
 import { GeoreferencerController } from "@georeferencing/core";
 import { createWorkerEngine } from "@georeferencing/core/engine";
+import { openLayers } from "@georeferencing/openlayers";
 import { Georeferencer } from "@georeferencing/react";
 import type OLMap from "ol/Map.js";
+import { useMemo } from "react";
 import "ol/ol.css";
 import "@georeferencing/react/styles.css";
 
@@ -80,9 +85,31 @@ export function ImageEditor({
   map: OLMap;
   session: ReturnType<typeof createEditorSession>;
 }) {
-  return <Georeferencer controller={session.controller} referenceMap={map} />;
+  const adapter = useMemo(() => openLayers(map), [map]);
+  return <Georeferencer controller={session.controller} map={adapter} />;
 }
 ```
+
+## Map libraries
+
+The editor works the same way with every adapter; only creating the map and the
+adapter differs:
+
+| | OpenLayers | MapLibre GL JS | Leaflet |
+| --- | --- | --- | --- |
+| Adapter | `openLayers(map, options)` | `maplibre(map, options)` | `leaflet(map, { lib: L, ...options })` |
+| Package | `@georeferencing/openlayers` + `ol` | `@georeferencing/maplibre` + `maplibre-gl` | `@georeferencing/leaflet` + `leaflet` |
+| Stylesheet | `ol/ol.css` | `maplibre-gl/dist/maplibre-gl.css` (required for marker placement) | `leaflet/dist/leaflet.css` |
+| Setup | `defaults({ onFocusOnly: false })` for a focusable map target | `setWorkerUrl(...)` before creating maps | Pass the Leaflet module as `lib` |
+| Drawing | Built in | Optional `terra-draw` + `terra-draw-maplibre-gl-adapter` | Optional `terra-draw` + `terra-draw-leaflet-adapter` |
+| PDF map page | `captureOpenLayersMap(map)` | `captureMapLibreMap(map)` | Not available |
+
+In the guided layout, the map's container is rendered by the editor (inside
+`referenceView`), so the map cannot exist before the editor first renders. The
+[React and map libraries guide](https://georeferencing-api-docs.gh.tobilg.com/React_and_map_libraries/)
+shows a small `useHostMap` hook for this case and a complete, tested integration for
+each library. The [map adapters guide](https://georeferencing-api-docs.gh.tobilg.com/Map_adapters/)
+compares the adapters' capabilities.
 
 The host calls `createEditorSession` once, for example when opening an editor,
 and retains it across renders. Render `ImageEditor` only after the host map exists.
@@ -104,17 +131,18 @@ URLs/factories for deployments that do not preserve default bundled asset paths.
 | Prop | Contract |
 | --- | --- |
 | `controller` | Required stable authoritative session controller |
-| `referenceMap` | Required initialized, host-owned OpenLayers map |
-| `bindingOptions` | Stable reference providers, projections, snapping and optional initial map framing |
+| `map` | Required stable map adapter, such as `openLayers(map, options)`, `maplibre(map, options)` or `leaflet(map, { lib: L })`; references, projections, snapping and initial framing are adapter options |
+| `definitions` | Host projection definitions for coordinate-unit labels in output settings |
 | `t` | Translate default English text, including configured format labels |
 | `formatError` | Format structured errors by code/message/operation ID |
 | `className` | Additional editor root class |
 | `propertyEditor` | Host feature-property form; update replacement JSON properties |
 | `onExport` | Receive any configured format's artifacts instead of automatic downloads |
 
-Memoize `bindingOptions` or construct it outside rendering. Changing its identity
-reattaches the binding. The ready-made component owns its attachment; do not also
-call `attachReferenceMap` for the same controller and map.
+Create the adapter once (for example with `useMemo`) or outside rendering. Changing
+its identity re-attaches the map. The ready-made component owns its attachment; do not
+also attach the same controller and map yourself. Map-history and "Finish drawing"
+buttons appear only when the adapter's binding supports them.
 
 ## Select exports on demand
 
@@ -125,16 +153,17 @@ its registry at runtime:
 import type { GeoreferencerController } from "@georeferencing/core";
 import { geoTiff } from "@georeferencing/plugins/geotiff";
 import { jpeg } from "@georeferencing/plugins/jpeg";
-import { pdf, type ReportMap } from "@georeferencing/plugins/pdf";
+import type { MapCapture } from "@georeferencing/core/map";
+import { pdf } from "@georeferencing/plugins/pdf";
 
 export function enableExports(
   controller: GeoreferencerController,
-  currentMap: () => ReportMap | undefined,
+  captureMap: () => Promise<MapCapture> | undefined,
 ) {
   controller.setExportFormats([
     geoTiff(),
     jpeg({ quality: 0.92 }),
-    pdf({ map: currentMap }),
+    pdf({ capture: captureMap }),
   ]);
 }
 ```
@@ -182,7 +211,7 @@ full-resolution image (`controller.requestDetailImage()`), and source pixels are
 crisply once each covers several screen pixels, so points can be placed at the
 original resolution.
 
-OpenLayers' `Map` creates its default interactions with `onFocusOnly: true`. If
+With OpenLayers, the `Map` creates its default interactions with `onFocusOnly: true`. If
 the map target has a `tabindex` (for keyboard navigation), mouse panning and wheel
 zoom then only work after the map has focus. Create the host map with
 `interactions: defaults({ onFocusOnly: false })` from `ol/interaction/defaults.js`,
@@ -198,7 +227,7 @@ import { ALL_CONTROLS, Georeferencer } from "@georeferencing/react";
 
 <Georeferencer
   controller={controller}
-  referenceMap={map}
+  map={adapter}
   referenceView={mapView}
   controls={{ transformation: true, outputSettings: true }}
 />;
@@ -238,9 +267,10 @@ elsewhere. These panels never take map or engine ownership.
 
 ## References, projections and snapping
 
-Pass core's `BindingOptions` as `bindingOptions`. Providers include bounded
-viewport WFS, static GeoJSON, custom abortable loaders and borrowed vector layers.
-A borrowed layer retains its host loading and ownership. Reference errors and
+Configure references, projections and snapping as options of the map adapter.
+Providers include bounded viewport WFS, static GeoJSON and custom abortable loaders
+with every adapter; the OpenLayers adapter also reads WFS GML and borrowed host vector
+layers, which retain their host loading and ownership. Reference errors and
 partial results appear in the UI without disabling manual target entry.
 
 Configure real endpoint/type names, request/response CRSs and axis conventions.
@@ -306,11 +336,12 @@ revision-safe but are not cancelled by UI suspension.
 | `FeaturePanel` | Drawing tools, features/properties, review and save controls |
 
 Composable panels do not install a map binding or unsaved-work dialog. Supply a
-controller with a host `guard`, attach the map once and manage suspension yourself:
+controller with a host `guard`, attach the map once with an adapter and manage
+suspension yourself:
 
 ```tsx
 import type { GeoreferencerController } from "@georeferencing/core";
-import { attachReferenceMap, type BindingOptions } from "@georeferencing/core/openlayers";
+import { attachReferenceMap, type BindingOptions } from "@georeferencing/openlayers";
 import {
   AlignmentPanel, FeaturePanel, GcpPanel, ImagePanel,
   ReferencePanel, useGeoreferencer,

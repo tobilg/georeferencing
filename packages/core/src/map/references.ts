@@ -1,12 +1,8 @@
-import type { FeatureCollection } from "geojson";
-import type Feature from "ol/Feature.js";
-import GeoJSON from "ol/format/GeoJSON.js";
-import WFS from "ol/format/WFS.js";
-import type VectorLayer from "ol/layer/Vector.js";
-import { get as getProjection } from "ol/proj.js";
-import type VectorSource from "ol/source/Vector.js";
+import type { FeatureCollection, Geometry, Position } from "geojson";
+import type { GeoreferencerController } from "../core/controller.js";
 import type { Definitions } from "../core/projection.js";
 import {
+  createConverter,
   intersection,
   normalizeCrs,
   projectExtent,
@@ -43,19 +39,6 @@ export interface ReferenceBase {
   /** Opt into reference snapping and configure its tolerance. */
   snapping?: SnapOptions;
 }
-/**
- * Use a vector layer already owned by the host. The package neither adds/removes this
- * layer nor loads, clears or disposes its source.
- */
-export interface BorrowedReference extends ReferenceBase {
-  /** Discriminator for a borrowed host vector layer. */
-  kind: "existing-vector";
-  /**
-   * Host-owned layer whose existing features are read for snapping without duplicating
-   * network requests.
-   */
-  layer: VectorLayer<VectorSource<Feature>>;
-}
 /** Static reference collection loaded into a package-owned layer. */
 export interface GeoJsonReference extends ReferenceBase {
   /** Discriminator for static reference GeoJSON. */
@@ -90,15 +73,6 @@ export interface Query {
    * through to network calls.
    */
   signal: AbortSignal;
-}
-/** WFS results converted to host map coordinates, with completeness feedback. */
-export interface ReferenceResult {
-  /** OpenLayers features in the requested map CRS with stable string IDs. */
-  features: Feature[];
-  /** True if paging, budgets or service counts indicate incomplete results. */
-  partial: boolean;
-  /** Explanation of incomplete or unavailable results. */
-  message?: string;
 }
 /**
  * Host-defined cancellable reference loader; useful for services with custom paging,
@@ -432,14 +406,11 @@ export async function describeWfsFeatureType(
     }));
 }
 /**
- * Supported reference-source configurations. Reference features remain separate from
- * control points and user-created drawings.
+ * Map-library-independent reference sources. Reference features remain separate from
+ * control points and user-created drawings. Map adapters may accept additional kinds,
+ * such as layers already owned by the host map.
  */
-export type Reference =
-  | BorrowedReference
-  | GeoJsonReference
-  | CustomReference
-  | WfsReference;
+export type ReferenceSource = GeoJsonReference | CustomReference | WfsReference;
 /**
  * Project the map viewport into the provider query CRS and intersect optional bounds. Fixed loading uses configured bounds directly.
  * @returns Query extent or null when the viewport intersection is empty.
@@ -524,25 +495,63 @@ export function buildWfsUrl(
   return url.href;
 }
 /**
- * Load bounded WFS pages, reject service exceptions and missing IDs, deduplicate features and transform coordinates to the map CRS.
- *
- * Register all response/map projections first with registerProjections. The binding calls this after queryBounds; direct callers must provide an extent in provider.requestCrs. A partial result is explicit, never silently treated as complete.
- * @param provider - Service and request configuration.
- * @param query - Bounds, map resolution and cancellation signal.
- * @param mapCrs - CRS of returned OpenLayers features.
+ * Reference features in an explicit CRS with completeness feedback. Generic adapters
+ * convert them to longitude/latitude with {@link toGeographic}.
  */
-export async function loadWfs(
+export interface ReferenceData {
+  /** Features with stable string IDs where the source provides them. */
+  data: FeatureCollection;
+  /** CRS of the feature coordinates. */
+  crs: string;
+  /** True if paging, budgets or service counts indicate incomplete results. */
+  partial: boolean;
+  /** Explanation of incomplete or unavailable results. */
+  message?: string;
+}
+/** One parsed WFS response page for {@link loadWfsPages}. */
+export interface WfsPage<T> {
+  /** Parsed features of this page, already validated by the parser. */
+  items: T[];
+  /** Total number of matching features reported by the service, when known. */
+  matched?: number;
+}
+/**
+ * Load bounded WFS GetFeature pages with a format-specific parser. Handles the
+ * resolution guard, page/feature budgets, capability validation, deduplication by
+ * feature ID and explicit partial-result reporting; map adapters supply the parser.
+ * @param provider - Service and request configuration.
+ * @param query - Bounds in `provider.requestCrs`, map resolution and cancellation signal.
+ * @param parse - Parse one response body. Throw for malformed responses.
+ * @param id - Read a feature's service ID, or its `idProperty` value.
+ * @param setId - Store the normalized string ID on the feature.
+ * @throws {@link "@georeferencing/core".GeoreferenceError} For invalid budgets, capability mismatches, missing IDs or service errors.
+ */
+export async function loadWfsPages<T>(
   provider: WfsReference,
   query: Query,
-  mapCrs: string,
-): Promise<ReferenceResult> {
-  const features = new Map<string, Feature>(),
+  parse: (text: string) => WfsPage<T>,
+  id: (item: T) => unknown,
+  setId: (item: T, id: string) => void,
+): Promise<{
+  /** Unique features in service order. */
+  items: T[];
+  /** True if the result is known or suspected to be incomplete. */
+  partial: boolean;
+  /** Explanation of incomplete results. */
+  message?: string;
+}> {
+  const items = new Map<string, T>(),
     pageSize = provider.pageSize ?? 500,
     maxFeatures = provider.maxFeatures ?? 5000,
     maxPages = provider.maxPages ?? 20;
+  const result = (partial: boolean, message?: string) => ({
+    items: [...items.values()],
+    partial,
+    message,
+  });
   if (provider.maxResolution && query.resolution > provider.maxResolution)
     return {
-      features: [],
+      items: [],
       partial: true,
       message: "Zoom in to load this reference.",
     };
@@ -577,121 +586,23 @@ export async function loadWfs(
       buildWfsUrl(provider, query.extent, start),
       { signal: query.signal },
     );
-    const text = await responseText(
-      response,
-      query.signal,
-      provider.maxResponseBytes,
+    const { items: parsed, matched } = parse(
+      await responseText(response, query.signal, provider.maxResponseBytes),
     );
-    let parsed: Feature[], matched: number | undefined;
-    if (provider.responseFormat === "geojson") {
-      const data = JSON.parse(text);
-      if (data.type !== "FeatureCollection" || !Array.isArray(data.features))
-        fail("WFS_FORMAT", "Expected a WFS GeoJSON FeatureCollection.");
-      matched =
-        typeof data.numberMatched === "number"
-          ? data.numberMatched
-          : typeof data.totalFeatures === "number"
-            ? data.totalFeatures
-            : undefined;
-      if (provider.responseAxisOrder === "yx") {
-        const swap = (v: unknown): unknown =>
-          Array.isArray(v)
-            ? typeof v[0] === "number"
-              ? [v[1], v[0], ...v.slice(2)]
-              : v.map(swap)
-            : v;
-        for (const f of data.features) {
-          if (!f.geometry?.coordinates)
-            fail("WFS_FORMAT", "Axis override requires coordinate geometries.");
-          f.geometry.coordinates = swap(f.geometry.coordinates);
-        }
-      }
-      const dataProjection = normalizeCrs(
-        provider.responseCrs ??
-          data.crs?.properties?.name ??
-          provider.requestCrs,
-      );
-      if (!getProjection(dataProjection))
-        fail(
-          "CRS",
-          `Register the WFS response projection '${dataProjection}'.`,
-        );
-      parsed = new GeoJSON().readFeatures(data, {
-        dataProjection,
-        featureProjection: mapCrs,
-      });
-    } else {
-      const xml = xmlDocument(text);
-      const count = xml.documentElement.getAttribute("numberMatched");
-      if (count && count !== "unknown") matched = Number(count);
-      const geometryCrs = Array.from(xml.getElementsByTagName("*"))
-        .find((n) => n.hasAttribute("srsName"))
-        ?.getAttribute("srsName");
-      const declaredCrs =
-        provider.responseCrs ?? geometryCrs ?? provider.requestCrs;
-      const responseCrs = normalizeCrs(declaredCrs);
-      const requestedAxis =
-        provider.responseAxisOrder ??
-        (/CRS:?84$/i.test(declaredCrs) ? "xy" : undefined);
-      if (!getProjection(responseCrs))
-        fail("CRS", `Register the WFS response projection '${responseCrs}'.`);
-      // Normalize EPSG URI aliases so registered local projected CRSs are found.
-      for (const n of Array.from(xml.getElementsByTagName("*")))
-        if (n.hasAttribute("srsName"))
-          n.setAttribute(
-            "srsName",
-            provider.responseCrs
-              ? responseCrs
-              : normalizeCrs(n.getAttribute("srsName")!),
-          );
-      parsed = new WFS({ version: provider.version }).readFeatures(xml, {
-        dataProjection: responseCrs,
-        featureProjection: responseCrs,
-      });
-      const nativeAxis = getProjection(responseCrs)!
-        .getAxisOrientation()
-        .startsWith("ne")
-        ? "yx"
-        : "xy";
-      for (const f of parsed) {
-        const geometry = f.getGeometry();
-        if (requestedAxis && requestedAxis !== nativeAxis)
-          geometry?.applyTransform((input, output, stride = 2) => {
-            output ??= input;
-            for (let i = 0; i < input.length; i += stride) {
-              const x = input[i];
-              output[i] = input[i + 1];
-              output[i + 1] = x;
-              for (let j = 2; j < stride; j++) output[i + j] = input[i + j];
-            }
-            return output;
-          });
-        geometry?.transform(responseCrs, mapCrs);
-      }
-    }
     let added = 0;
-    for (const f of parsed) {
-      if (!f.getGeometry()?.getExtent().every(Number.isFinite))
-        fail(
-          "WFS_GEOMETRY",
-          "Reference geometry is missing or cannot be projected with the registered CRS definitions.",
-        );
-      const id =
-        f.getId() ?? (provider.idProperty && f.get(provider.idProperty));
-      if (id === undefined || id === false || id === null || id === "")
+    for (const item of parsed) {
+      const raw = id(item);
+      if (raw === undefined || raw === false || raw === null || raw === "")
         fail(
           "WFS_ID",
           "Reference features require stable IDs; configure idProperty if the service omits IDs.",
         );
-      f.setId(String(id));
-      if (!features.has(String(id))) {
-        if (features.size >= maxFeatures)
-          return {
-            features: [...features.values()],
-            partial: true,
-            message: "Feature budget reached; zoom in.",
-          };
-        features.set(String(id), f);
+      const key = String(raw);
+      setId(item, key);
+      if (!items.has(key)) {
+        if (items.size >= maxFeatures)
+          return result(true, "Feature budget reached; zoom in.");
+        items.set(key, item);
         added++;
       }
     }
@@ -700,30 +611,332 @@ export async function loadWfs(
       parsed.length === 0 ||
       (matched !== undefined && start >= matched) ||
       (matched === undefined && parsed.length < pageSize)
-    )
-      return {
-        features: [...features.values()],
-        partial: matched !== undefined && features.size < matched,
-        message:
-          matched !== undefined && features.size < matched
-            ? "Service count and unique result count differ."
-            : undefined,
-      };
+    ) {
+      const incomplete = matched !== undefined && items.size < matched;
+      return result(
+        incomplete,
+        incomplete
+          ? "Service count and unique result count differ."
+          : undefined,
+      );
+    }
     if (
       added === 0 ||
       (provider.version === "1.1.0" &&
         !(provider.supportsStartIndex ?? capabilities?.paging)) ||
       capabilities?.paging === false
     )
-      return {
-        features: [...features.values()],
-        partial: true,
-        message: "Paging unavailable or repeated page; results are incomplete.",
-      };
+      return result(
+        true,
+        "Paging unavailable or repeated page; results are incomplete.",
+      );
   }
+  return result(true, "Page budget reached; results are incomplete.");
+}
+/**
+ * Load a WFS provider that returns GeoJSON (`responseFormat: "geojson"`), without any
+ * map library. GML responses require the OpenLayers adapter's parser.
+ * @param provider - Service and request configuration.
+ * @param query - Bounds in `provider.requestCrs`, map resolution and cancellation signal.
+ * @returns Features in the declared response CRS.
+ */
+export async function loadWfsGeoJson(
+  provider: WfsReference,
+  query: Query,
+): Promise<ReferenceData> {
+  if (provider.responseFormat !== "geojson")
+    fail(
+      "WFS_FORMAT",
+      "This map adapter reads WFS GeoJSON only; request GeoJSON output or use the OpenLayers adapter for GML.",
+    );
+  let crs = normalizeCrs(provider.responseCrs ?? provider.requestCrs);
+  type Item = FeatureCollection["features"][number];
+  const swap = (v: unknown): unknown =>
+    Array.isArray(v)
+      ? typeof v[0] === "number"
+        ? [v[1], v[0], ...v.slice(2)]
+        : v.map(swap)
+      : v;
+  const loaded = await loadWfsPages<Item>(
+    provider,
+    query,
+    (text) => {
+      const data = JSON.parse(text);
+      if (data.type !== "FeatureCollection" || !Array.isArray(data.features))
+        fail("WFS_FORMAT", "Expected a WFS GeoJSON FeatureCollection.");
+      if (!provider.responseCrs && data.crs?.properties?.name)
+        crs = normalizeCrs(data.crs.properties.name);
+      for (const f of data.features) {
+        if (!f?.geometry)
+          fail("WFS_GEOMETRY", "Reference geometry is missing.");
+        if (provider.responseAxisOrder === "yx") {
+          if (!f.geometry.coordinates)
+            fail("WFS_FORMAT", "Axis override requires coordinate geometries.");
+          f.geometry.coordinates = swap(f.geometry.coordinates);
+        }
+      }
+      return {
+        items: data.features,
+        matched:
+          typeof data.numberMatched === "number"
+            ? data.numberMatched
+            : typeof data.totalFeatures === "number"
+              ? data.totalFeatures
+              : undefined,
+      };
+    },
+    (f) =>
+      f.id ??
+      (provider.idProperty ? f.properties?.[provider.idProperty] : undefined),
+    (f, id) => {
+      f.id = id;
+    },
+  );
   return {
-    features: [...features.values()],
-    partial: true,
-    message: "Page budget reached; results are incomplete.",
+    data: { type: "FeatureCollection", features: loaded.items },
+    crs,
+    partial: loaded.partial,
+    message: loaded.message,
+  };
+}
+/**
+ * Convert a feature collection to longitude/latitude (EPSG:4326) coordinates. Supports
+ * every GeoJSON geometry type; IDs and properties are kept. Vertices are converted
+ * individually, without densifying long projected segments.
+ * @param data - Features in `crs`; not mutated.
+ * @param crs - CRS of the input coordinates.
+ * @param definitions - Host projection definitions.
+ * @throws {@link "@georeferencing/core".GeoreferenceError} For unknown CRSs or coordinates outside the projection domain.
+ */
+export function toGeographic(
+  data: FeatureCollection,
+  crs: string,
+  definitions: Definitions = {},
+): FeatureCollection {
+  const convert = createConverter(crs, "EPSG:4326", definitions);
+  const position = (p: Position): Position => {
+    const q = convert([p[0], p[1]]);
+    if (!q.every(Number.isFinite))
+      fail("CRS", `Reference coordinates cannot be converted from ${crs}.`);
+    return [q[0], q[1], ...p.slice(2)];
+  };
+  const geometry = (g: Geometry | null): Geometry | null => {
+    if (!g) return g;
+    switch (g.type) {
+      case "Point":
+        return { ...g, coordinates: position(g.coordinates) };
+      case "MultiPoint":
+      case "LineString":
+        return { ...g, coordinates: g.coordinates.map(position) };
+      case "MultiLineString":
+      case "Polygon":
+        return { ...g, coordinates: g.coordinates.map((r) => r.map(position)) };
+      case "MultiPolygon":
+        return {
+          ...g,
+          coordinates: g.coordinates.map((p) => p.map((r) => r.map(position))),
+        };
+      case "GeometryCollection":
+        return {
+          ...g,
+          geometries: g.geometries.map((child) => geometry(child) as Geometry),
+        };
+    }
+  };
+  return {
+    ...data,
+    features: data.features.map((f) => ({
+      ...f,
+      geometry: geometry(f.geometry) as Geometry,
+    })),
+  };
+}
+/**
+ * Load any {@link ReferenceSource} as longitude/latitude GeoJSON, for map libraries that
+ * display geographic coordinates (MapLibre, Leaflet). WFS sources must return GeoJSON.
+ * @param provider - Reference configuration.
+ * @param query - Viewport query; null for static GeoJSON sources.
+ * @param definitions - Host projection definitions.
+ */
+export async function loadReferenceData(
+  provider: ReferenceSource,
+  query: Query | null,
+  definitions: Definitions = {},
+): Promise<ReferenceData> {
+  let loaded: ReferenceData;
+  if (provider.kind === "geojson")
+    loaded = { data: provider.data, crs: provider.crs, partial: false };
+  else if (!query) fail("REFERENCE", "This reference requires a query.");
+  else if (provider.kind === "wfs")
+    loaded = await loadWfsGeoJson(provider, query!);
+  else loaded = await provider.load(query!);
+  return {
+    ...loaded!,
+    data: toGeographic(loaded!.data, loaded!.crs, definitions),
+    crs: "EPSG:4326",
+  };
+}
+/** Provider status reported by {@link watchReferences}. */
+export interface ReferenceLoadStatus {
+  /** Latest provider request state. */
+  state: "loading" | "ready" | "error";
+  /** Whether service behavior or budgets caused incomplete results. */
+  partial?: boolean;
+  /** Optional provider explanation. */
+  message?: string;
+}
+/** Hooks connecting {@link watchReferences} to a map binding. */
+export interface ReferenceWatchOptions<P extends ReferenceBase, T> {
+  /** Controller receiving provider statuses for its snapshot. */
+  controller: GeoreferencerController;
+  /**
+   * Current host view: visible extent and resolution in `crs`. Throw if the view or its
+   * projection is unavailable; the provider then reports an error.
+   */
+  view(): {
+    /** Visible extent in `crs`. */
+    extent: Extent;
+    /** Map CRS of the extent. */
+    crs: string;
+    /** Map units per pixel. */
+    resolution: number;
+  };
+  /**
+   * Load one provider. `query` is null for static sources that ignore the viewport.
+   * Return null to leave the provider empty without an error.
+   */
+  load(
+    provider: P,
+    query: Query | null,
+  ): Promise<{
+    /** Loaded data in the binding's own representation. */
+    data: T;
+    /** Whether the result is incomplete. */
+    partial: boolean;
+    /** Explanation of incomplete results. */
+    message?: string;
+  } | null>;
+  /** Display loaded data, or clear the provider's display when `data` is null. */
+  apply(provider: P, data: T | null): void;
+  /** Whether a provider follows viewport navigation. Defaults to WFS/custom sources without fixed loading. */
+  followsView?(provider: P): boolean;
+  /** Host projection definitions for query bounds. */
+  definitions?: Definitions;
+  /**
+   * Delay before refreshing after navigation, in milliseconds.
+   * @defaultValue `150`
+   */
+  debounceMs?: number;
+  /** Observe provider status changes in addition to the controller snapshot. */
+  onStatus?(id: string, status: ReferenceLoadStatus): void;
+}
+/**
+ * Load reference providers for a map binding: debounced viewport refreshes, abort of
+ * superseded requests, discarding of late results and status reporting through the
+ * controller. Loading starts immediately.
+ * @param providers - Provider configurations with unique IDs.
+ * @param options - Binding hooks for view access, loading and display.
+ * @returns Controls to refresh after navigation or projection changes and to dispose.
+ */
+export function watchReferences<P extends ReferenceBase, T>(
+  providers: readonly P[],
+  options: ReferenceWatchOptions<P, T>,
+): {
+  /** Reload providers that follow the viewport; call after navigation ends. */
+  refreshViewport(): void;
+  /** Reload every provider, for example after the map projection changed. */
+  refreshAll(): void;
+  /** Abort requests, cancel timers and clear provider statuses. */
+  dispose(): void;
+} {
+  const follows =
+    options.followsView ??
+    ((provider: P) => {
+      const p = provider as unknown as ReferenceSource;
+      return p.kind !== "geojson" && p.loading !== "fixed";
+    });
+  let disposed = false;
+  const watchers = providers.map((provider) => {
+    let abort: AbortController | undefined,
+      generation = 0,
+      timer: ReturnType<typeof setTimeout> | undefined;
+    const status = (value: ReferenceLoadStatus) => {
+      options.controller.setReferenceStatus(provider.id, {
+        label: provider.label,
+        ...value,
+      });
+      options.onStatus?.(provider.id, value);
+    };
+    const load = async () => {
+      abort?.abort();
+      abort = new AbortController();
+      const signal = abort.signal,
+        current = ++generation;
+      status({ state: "loading" });
+      try {
+        const source = provider as unknown as ReferenceSource;
+        let query: Query | null = null;
+        if (source.kind === "wfs" || source.kind === "custom") {
+          const view = options.view();
+          const extent = queryBounds(
+            source,
+            view.extent,
+            view.crs,
+            options.definitions,
+          );
+          if (extent)
+            query = {
+              extent,
+              crs: source.kind === "wfs" ? source.requestCrs : source.queryCrs,
+              resolution: view.resolution,
+              signal,
+            };
+        }
+        const result =
+          query || !(source.kind === "wfs" || source.kind === "custom")
+            ? await options.load(provider, query)
+            : null;
+        if (disposed || current !== generation || signal.aborted) return;
+        options.apply(provider, result ? result.data : null);
+        status({
+          state: "ready",
+          partial: result?.partial ?? false,
+          message: result?.message,
+        });
+      } catch (error) {
+        if (!disposed && current === generation && !signal.aborted) {
+          options.apply(provider, null);
+          status({ state: "error", message: String(error) });
+        }
+      }
+    };
+    const schedule = () => {
+      abort?.abort();
+      generation++;
+      clearTimeout(timer);
+      timer = setTimeout(() => void load(), options.debounceMs ?? 150);
+    };
+    const cancel = () => {
+      abort?.abort();
+      generation++;
+      clearTimeout(timer);
+    };
+    schedule();
+    return { provider, schedule, cancel };
+  });
+  return {
+    refreshViewport() {
+      for (const w of watchers) if (follows(w.provider)) w.schedule();
+    },
+    refreshAll() {
+      for (const w of watchers) w.schedule();
+    },
+    dispose() {
+      disposed = true;
+      for (const w of watchers) {
+        w.cancel();
+        options.controller.setReferenceStatus(w.provider.id, null);
+      }
+    },
   };
 }

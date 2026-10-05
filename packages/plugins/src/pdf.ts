@@ -4,14 +4,20 @@
  * @group @georeferencing/plugins
  */
 import type { ExportFormat } from "@georeferencing/core";
-import type { ReportMap, ReportOptions } from "./report.js";
+import type { MapCapture } from "@georeferencing/core/map";
+import type { ReportOptions } from "./report.js";
 
-export type { ReportMap, ReportOptions, ReportView } from "./report.js";
+export type { ReportOptions } from "./report.js";
 
 /** Lazy report configuration; importing this type does not load pdf-lib. */
 export interface PdfOptions extends Omit<ReportOptions, "map"> {
-  /** Optional map or accessor resolved when export starts. Omit for raster-only reports. */
-  map?: ReportMap | (() => ReportMap | undefined);
+  /**
+   * Capture the host map when the export starts, for the report's map page; return
+   * undefined to skip it. Use a map binding's `capture()` or an adapter's capture
+   * function, such as `captureOpenLayersMap` or `captureMapLibreMap`. Omit for
+   * raster-only reports.
+   */
+  capture?: () => MapCapture | undefined | Promise<MapCapture | undefined>;
 }
 
 /** Register a PDF report without importing pdf-lib or report implementation eagerly. */
@@ -32,8 +38,7 @@ export function pdf(options: PdfOptions = {}): ExportFormat {
             context.preview,
             {
               ...options,
-              map:
-                typeof options.map === "function" ? options.map() : options.map,
+              map: await options.capture?.(),
             },
           );
           context.signal.throwIfAborted();

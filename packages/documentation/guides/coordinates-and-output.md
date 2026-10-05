@@ -12,13 +12,13 @@ title: Coordinates and raster output
 | Image GCP | Original resolution after EXIF orientation normalization; top-left corner `(0, 0)`, y down, first pixel centre `(0.5, 0.5)` |
 | Reference target | A coordinate snapshot with its own `Gcp.crs`; later reference refreshes cannot move it |
 | Working | Explicit document CRS for fitting, residuals and preview |
-| Map view | Host OpenLayers view projection, independent of the working CRS |
+| Map view | Projection of the host map (OpenLayers, MapLibre GL or Leaflet), independent of the working CRS. Previews are shown in the working CRS with OpenLayers and in the map projection with MapLibre and Leaflet (`controller.setPreviewCrs`) |
 | Raster output | Explicit `document.output.crs`, resolution and bounds |
 | Feature output | RFC 7946 longitude/latitude by default, regardless of map projection |
 
 Tuples use x/y order internally. WFS wire axis order is configured separately. An initial map bounding box only frames the map. Reference query bounds, geographic drawing bounds and output raster bounds are independent settings.
 
-Register custom definitions with the OpenLayers binding and pass the same definitions to the worker engine. Required datum grids are supplied as NTv2 bytes through `datumGrids`; the package does not download them. EPSG:4326 and EPSG:3857 are built in, but a random EPSG identifier does not load its definition. Geographic wrap/polar cases outside the supported domain produce errors instead of silent coordinate substitution.
+Pass custom definitions to the map adapter and the same definitions to the worker engine. Required datum grids are supplied as NTv2 bytes through `datumGrids`; the package does not download them. EPSG:4326 and EPSG:3857 are built in, but a random EPSG identifier does not load its definition. Geographic wrap/polar cases outside the supported domain produce errors instead of silent coordinate substitution.
 
 ## Transformation models and diagnostics
 

@@ -1,6 +1,6 @@
 import { MODELS } from "@georeferencing/core/core";
 import { createWorkerEngine } from "@georeferencing/core/engine";
-import { registerProjections } from "@georeferencing/core/openlayers";
+import { openLayers, registerProjections } from "@georeferencing/openlayers";
 import { geoTiff } from "@georeferencing/plugins/geotiff";
 import { jpeg } from "@georeferencing/plugins/jpeg";
 import { pdf } from "@georeferencing/plugins/pdf";
@@ -9,7 +9,7 @@ import VectorLayer from "ol/layer/Vector.js";
 import OLMap from "ol/Map.js";
 import VectorSource from "ol/source/Vector.js";
 import View from "ol/View.js";
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "@georeferencing/react/styles.css";
 import "ol/ol.css";
@@ -28,6 +28,7 @@ const controller = new GeoreferencerController({
 function App() {
   const [map, setMap] = useState<OLMap | null>(null),
     [visible, setVisible] = useState(true);
+  const adapter = useMemo(() => (map ? openLayers(map) : null), [map]);
   useEffect(() => {
     const hostLayer = new VectorLayer({ source: new VectorSource() });
     const map = new OLMap({
@@ -50,8 +51,8 @@ function App() {
   return (
     <>
       <div id="map" style={{ height: 400 }} />
-      {map && visible && (
-        <Georeferencer referenceMap={map} controller={controller} />
+      {adapter && visible && (
+        <Georeferencer map={adapter} controller={controller} />
       )}
     </>
   );

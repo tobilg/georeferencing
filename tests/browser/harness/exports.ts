@@ -1,3 +1,4 @@
+import { captureOpenLayersMap } from "@georeferencing/openlayers";
 import {
   accuracy,
   points,
@@ -14,7 +15,13 @@ export function harnessExports(map: () => OLMap | undefined, definitions = {}) {
   return [
     geoTiff(),
     jpeg(),
-    pdf({ map, definitions }),
+    pdf({
+      capture: () => {
+        const host = map();
+        return host ? captureOpenLayersMap(host) : undefined;
+      },
+      definitions,
+    }),
     worldFile(),
     session(),
     points(definitions),

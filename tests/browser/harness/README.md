@@ -1,7 +1,7 @@
 # Browser test harnesses
 
 These development pages exercise the public package exports using actual browser
-files, workers and OpenLayers maps. They are separate from the Hamburg demo and
+files, workers and OpenLayers, MapLibre GL and Leaflet maps. They are separate from the Hamburg demo and
 are neither published to npm nor included in the demo's production build.
 
 ## Run locally
@@ -25,6 +25,7 @@ the affected package after changing library code, or run its development watcher
 | `/validation.html?editors=1` | Single editor with normal Save/Discard/Cancel guards for complete workflow and export tests | `window.validation` |
 | `/guided.html` | Guided four-step editor with the minimal default controls; `?controls=all` enables every optional control | `window.guided` |
 | `/engine.html` | File inspection, fitting, preview and real GeoTIFF encoding in workers | `window.engine`, `window.runEngine`, `window.encodeRaster` |
+| `/adapters.html?lib=maplibre`, `?lib=leaflet` | React editor with the MapLibre or Leaflet adapter: picking, snapping, preview, Terra Draw drawing, style replacement and cleanup | `window.adapters` |
 
 The engine page accepts a local image. Its synthetic control points exercise the
 processing path; they do not establish an unknown image's geographic position.

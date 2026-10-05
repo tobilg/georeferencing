@@ -21,7 +21,7 @@ Session JSON contains metadata, GCPs, drawings, settings and provenance, not sou
 
 ## Confirm, draw and review
 
-Digitizing is opt-in through `digitizing: true`. `confirm()` requires a valid fit for exactly the current image/alignment and enters drawing mode. Point, LineString and Polygon features require stable unique string IDs and JSON properties. The OpenLayers binding assigns IDs for its new drawings.
+Digitizing is opt-in through `digitizing: true`. `confirm()` requires a valid fit for exactly the current image/alignment and enters drawing mode. Point, LineString and Polygon features require stable unique string IDs and JSON properties. Map adapters assign IDs to the drawings they create.
 
 `setFeatures` accepts structurally valid geographic drafts, including editable topology errors. Accepted saving requires valid topology. `deleteFeature` and `updateProperties` preserve document scope and participate in undo/redo.
 

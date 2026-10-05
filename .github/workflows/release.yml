@@ -29,6 +29,7 @@ jobs:
       npm_tag: ${{ steps.version.outputs.npm_tag }}
       prerelease: ${{ steps.version.outputs.prerelease }}
       dry_run: ${{ steps.version.outputs.dry_run }}
+      packages: ${{ steps.version.outputs.packages }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -39,7 +40,9 @@ jobs:
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
         run: |
           VERSION=$(node -p 'require("./packages/core/package.json").version')
-          for pkg in plugins react; do
+          # Public packages in publish order (core first), from scripts/packages.mjs.
+          PACKAGES=$(node --input-type=module -e 'import { PUBLIC_PACKAGES } from "./scripts/packages.mjs"; console.log(PUBLIC_PACKAGES.join(" "))')
+          for pkg in $PACKAGES; do
             OTHER=$(node -p "require('./packages/$pkg/package.json').version")
             if [ "$OTHER" != "$VERSION" ]; then
               echo "::error::@georeferencing/$pkg is $OTHER but @georeferencing/core is $VERSION. All packages must share one version."
@@ -71,6 +74,7 @@ jobs:
           echo "npm_tag=$NPM_TAG" >> "$GITHUB_OUTPUT"
           echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
           echo "dry_run=$DRY_RUN" >> "$GITHUB_OUTPUT"
+          echo "packages=$PACKAGES" >> "$GITHUB_OUTPUT"
           echo "Release $VERSION (npm tag: $NPM_TAG, dry run: $DRY_RUN)"
 
   ci:
@@ -88,6 +92,7 @@ jobs:
       VERSION: ${{ needs.version.outputs.version }}
       NPM_TAG: ${{ needs.version.outputs.npm_tag }}
       DRY_RUN: ${{ needs.version.outputs.dry_run }}
+      PACKAGES: ${{ needs.version.outputs.packages }}
     steps:
       - name: Download npm packages verified by CI
         uses: actions/download-artifact@v8
@@ -104,14 +109,14 @@ jobs:
       - name: Install pinned npm
         run: npm install -g "npm@$PUBLISH_NPM_VERSION" && npm --version
 
-      # Core first: plugins and react declare it as a peer dependency.
+      # Core first: every other package declares it as a peer dependency.
       - name: Publish packages
         run: |
           # Unauthenticated registry lookups: 200 = exists, 404 = not published yet.
           registry_status() {
             curl -sS -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/${1/\//%2f}"
           }
-          for pkg in core plugins react; do
+          for pkg in $PACKAGES; do
             NAME="@georeferencing/$pkg"
             TARBALL="./packages/georeferencing-$pkg-$VERSION.tgz"
             test -f "$TARBALL" || { echo "::error::Missing $TARBALL"; exit 1; }
@@ -131,7 +136,7 @@ jobs:
             echo
             echo "**Version:** $VERSION · **dist-tag:** $NPM_TAG · **dry run:** ${DRY_RUN:-false}"
             echo
-            for pkg in core plugins react; do
+            for pkg in $PACKAGES; do
               echo "- [@georeferencing/$pkg@$VERSION](https://www.npmjs.com/package/@georeferencing/$pkg/v/$VERSION)"
             done
           } >> "$GITHUB_STEP_SUMMARY"

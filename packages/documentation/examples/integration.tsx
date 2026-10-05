@@ -1,4 +1,5 @@
 import { createWorkerEngine } from "@georeferencing/core/engine";
+import { openLayers } from "@georeferencing/openlayers";
 import { geoTiff } from "@georeferencing/plugins/geotiff";
 import { jpeg } from "@georeferencing/plugins/jpeg";
 import { pdf } from "@georeferencing/plugins/pdf";
@@ -8,6 +9,7 @@ import {
   GeoreferencerController,
 } from "@georeferencing/react";
 import type OLMap from "ol/Map.js";
+import { useMemo } from "react";
 import "@georeferencing/react/styles.css";
 
 export function createEditor(
@@ -40,5 +42,7 @@ export function ImageEditor({
   map: OLMap;
   controller: GeoreferencerController;
 }) {
-  return <Georeferencer controller={controller} referenceMap={map} />;
+  // Create the adapter once per map; a new adapter re-attaches the editor.
+  const adapter = useMemo(() => openLayers(map), [map]);
+  return <Georeferencer controller={controller} map={adapter} />;
 }

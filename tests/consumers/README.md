@@ -5,7 +5,7 @@ CSS and workers work outside this workspace. They are not pnpm workspace package
 and are not included in npm archives.
 
 Run `pnpm test:consumer` from the repository root. The shared runner in
-`scripts/consumer.mjs` builds/packs the three public packages, checks archive
+`scripts/consumer.mjs` builds/packs every public package, checks archive
 contents, and copies these fixtures to independent temporary directories. It
 injects absolute tarball dependencies and installs there without workspace links.
 It also copies and typechecks the documentation examples in the React consumer.
@@ -13,8 +13,9 @@ Temporary installs use `--no-frozen-lockfile` because the runner generates and
 changes their manifests and overrides. Run `CI=true pnpm test:consumer` to verify
 the same behavior under CI defaults.
 
-- `react/`: explicit compatibility versions, a React/OpenLayers host, Vite build,
-  SSR import checks, and a server that enforces the deployment prefix and CSP.
+- `react/`: explicit compatibility versions, a React host using the OpenLayers
+  adapter, Vite build, SSR import checks of every package including the MapLibre and
+  Leaflet adapters, and a server that enforces the deployment prefix and CSP.
 - `headless/`: core-only SSR/bundle checks, followed by plugin typechecking in an
   installation without React or OpenLayers.
 

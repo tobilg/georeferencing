@@ -7,11 +7,10 @@
     "pnpm": "12.x"
   },
   "scripts": {
-    "dev": "pnpm build:packages && pnpm --parallel --filter @georeferencing/core --filter @georeferencing/plugins --filter @georeferencing/react --filter @georeferencing/demo run dev",
+    "dev": "pnpm build:packages && pnpm --parallel --filter \"@georeferencing/*\" --filter \"!@georeferencing/documentation\" run dev",
     "build": "pnpm -r run build",
     "build:core": "pnpm --filter @georeferencing/core run build",
     "build:demo": "pnpm --filter @georeferencing/demo... run build",
-    "pack:core": "pnpm --filter @georeferencing/core pack --pack-destination artifacts",
     "lint": "biome check . --error-on-warnings",
     "lint:fix": "biome check --write . --error-on-warnings",
     "format": "biome format --write .",
@@ -25,10 +24,8 @@
     "docs:dev": "pnpm build:packages && pnpm --filter @georeferencing/documentation run dev",
     "docs:preview": "pnpm --filter @georeferencing/documentation run preview",
     "test:docs": "pnpm docs:build && pnpm --filter @georeferencing/documentation run test",
-    "build:packages": "pnpm --filter @georeferencing/core --filter @georeferencing/plugins --filter @georeferencing/react run build",
-    "pack:plugins": "pnpm --filter @georeferencing/plugins pack --pack-destination artifacts",
-    "pack:react": "pnpm --filter @georeferencing/react pack --pack-destination artifacts",
-    "pack:packages": "pnpm build:packages && pnpm pack:core && pnpm pack:plugins && pnpm pack:react",
+    "build:packages": "pnpm --filter \"@georeferencing/*\" --filter \"!@georeferencing/demo\" --filter \"!@georeferencing/documentation\" run build",
+    "pack:packages": "pnpm build:packages && node scripts/pack-packages.mjs",
     "release:check": "pnpm pack:packages && node scripts/check-package-contents.mjs",
     "dev:harness": "vite --config tests/browser/harness/vite.config.ts",
     "version:set": "node scripts/set-version.mjs"
@@ -50,6 +47,15 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3"
+    "@types/react-dom": "19.2.3",
+    "@georeferencing/openlayers": "workspace:*",
+    "@georeferencing/maplibre": "workspace:*",
+    "maplibre-gl": "6.12.0",
+    "terra-draw": "1.36.0",
+    "terra-draw-maplibre-gl-adapter": "1.4.1",
+    "@georeferencing/leaflet": "workspace:*",
+    "leaflet": "1.9.4",
+    "@types/leaflet": "1.9.22",
+    "terra-draw-leaflet-adapter": "1.3.0"
   }
 }

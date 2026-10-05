@@ -9,8 +9,8 @@ title: Optional export plugins
 
 ```sh
 pnpm add @georeferencing/core @georeferencing/plugins
-# Add UI when needed:
-pnpm add @georeferencing/react react@19 react-dom@19 ol@10
+# Add UI and a map adapter when needed, for example OpenLayers:
+pnpm add @georeferencing/react @georeferencing/openlayers react@19 react-dom@19 ol@10
 ```
 
 {@includeCode ../examples/exports.ts}
@@ -37,7 +37,7 @@ GeoTIFF supports uncompressed, Deflate and PackBits encoding, with numeric no-da
 
 JPEG shares the full-resolution warp and output grid with GeoTIFF, then composites alpha over an RGB background (white by default). Quality is a number from 0 to 1, default 0.92. It is lossy and has no embedded CRS. Keep the `.jgw` and `.crs.json` sidecars with it. The world file uses the upper-left **pixel centre**, with a negative y pixel size. The returned raster contains the original pre-encoding RGBA pixels; the JPEG bytes contain the flattened, lossy image.
 
-PDF uses the current aligned preview for a local report, not a geospatial PDF raster. `pdf({ map: () => hostMap })` resolves the host map at export time. Other options include paper, margins and attribution. Host-map capture uses currently loaded CORS-safe canvas layers; omit `map` for an aligned-raster report. pdf-lib loads only on demand. Import low-level `createPdfReport` from `@georeferencing/plugins/report` when managing the report lifecycle yourself.
+PDF uses the current aligned preview for a local report, not a geospatial PDF raster. `pdf({ capture })` adds a page with the current host map: `capture` runs when the export starts and returns a `MapCapture`, for example from `captureOpenLayersMap(map)` or `captureMapLibreMap(map)`, or undefined to skip the page. Other options include paper, margins and attribution. Map capture uses the currently rendered, CORS-safe map; Leaflet maps cannot be captured because their tiles are DOM images. Omit `capture` for an aligned-raster report. pdf-lib loads only on demand. Import low-level `createPdfReport` from `@georeferencing/plugins/report` when managing the report lifecycle yourself.
 
 ## Convenience aliases
 

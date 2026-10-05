@@ -1,9 +1,7 @@
+import type { Definitions, Features, XY } from "@georeferencing/core";
+import { fail, project } from "@georeferencing/core";
 import type Feature from "ol/Feature.js";
 import GeoJSON from "ol/format/GeoJSON.js";
-import type { Definitions } from "../core/projection.js";
-import { project } from "../core/projection.js";
-import type { Features, XY } from "../core/types.js";
-import { fail } from "../core/types.js";
 /**
  * Convert an OpenLayers Point, LineString or Polygon into longitude/latitude GeoJSON, preserving ID and properties.
  *

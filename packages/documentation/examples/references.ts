@@ -1,5 +1,5 @@
 import type { Extent } from "@georeferencing/core/core";
-import type { BindingOptions } from "@georeferencing/core/openlayers";
+import type { BindingOptions } from "@georeferencing/openlayers";
 import type Feature from "ol/Feature.js";
 import type VectorLayer from "ol/layer/Vector.js";
 import type VectorSource from "ol/source/Vector.js";

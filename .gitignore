@@ -163,3 +163,6 @@ packages/core/LICENSE
 
 packages/plugins/LICENSE
 packages/react/LICENSE
+packages/openlayers/LICENSE
+packages/maplibre/LICENSE
+packages/leaflet/LICENSE

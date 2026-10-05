@@ -1,0 +1,70 @@
+{
+  "name": "@georeferencing/maplibre",
+  "version": "0.4.0",
+  "description": "MapLibre GL JS map adapter for georeferencing: overlay, control points, drawing (Terra Draw), snapping and reference layers",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "peerDependencies": {
+    "@georeferencing/core": "workspace:^",
+    "maplibre-gl": ">=6.0.0 <7",
+    "terra-draw": "^1.36.0",
+    "terra-draw-maplibre-gl-adapter": "^1.4.1"
+  },
+  "peerDependenciesMeta": {
+    "terra-draw": {
+      "optional": true
+    },
+    "terra-draw-maplibre-gl-adapter": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@georeferencing/core": "workspace:*",
+    "typescript": "5.9.3",
+    "maplibre-gl": "6.12.0",
+    "terra-draw": "1.36.0",
+    "terra-draw-maplibre-gl-adapter": "1.4.1"
+  },
+  "scripts": {
+    "build": "node ../../scripts/build-package.mjs maplibre",
+    "dev": "node ../../scripts/build-package.mjs maplibre --watch",
+    "typecheck": "tsc --noEmit --noUnusedLocals --noUnusedParameters",
+    "prepack": "pnpm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tobilg/georeferencing.git",
+    "directory": "packages/maplibre"
+  },
+  "homepage": "https://github.com/tobilg/georeferencing#readme",
+  "bugs": {
+    "url": "https://github.com/tobilg/georeferencing/issues"
+  },
+  "keywords": [
+    "georeferencing",
+    "maplibre",
+    "maplibre-gl",
+    "gis",
+    "typescript"
+  ]
+}
