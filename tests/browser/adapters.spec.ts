@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import type {} from "./harness/adapters.js";
+import { hasWebGL2, NO_WEBGL2 } from "./helpers.js";
 
 const R = 6378137;
 const mercator = ([lon, lat]: number[]) => [
@@ -33,6 +34,9 @@ const snapshot = (page: Page) =>
 
 for (const lib of ["maplibre", "leaflet"]) {
   test.describe(`${lib} adapter`, () => {
+    test.beforeEach(async ({ page }) => {
+      test.skip(lib === "maplibre" && !(await hasWebGL2(page)), NO_WEBGL2);
+    });
     test("picks and snaps control points, shows the preview and cleans up", async ({
       page,
     }) => {

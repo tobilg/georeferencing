@@ -5,6 +5,7 @@ import type TileLayer from "ol/layer/Tile.js";
 import type OLMap from "ol/Map.js";
 import type OSM from "ol/source/OSM.js";
 import type {} from "../../packages/demo/main.js";
+import { hasWebGL2, mapLibraries, NO_WEBGL2 } from "./helpers.js";
 
 // The guided workflow exercises the real demo; other specs use the test harness.
 test.use({
@@ -486,6 +487,7 @@ for (const library of ["maplibre", "leaflet"]) {
   test(`MAP-01: the demo matches points with the ${library} adapter`, async ({
     page,
   }) => {
+    test.skip(library === "maplibre" && !(await hasWebGL2(page)), NO_WEBGL2);
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
     // MapLibre reports worker failures as console errors, not page errors.
@@ -523,7 +525,7 @@ test("MAP-02: every map library opens with the same center and scale", async ({
   page,
 }) => {
   const views: Record<string, { center: number[]; resolution: number }> = {};
-  for (const library of ["openlayers", "maplibre", "leaflet"]) {
+  for (const library of await mapLibraries(page)) {
     await page.goto(`/?map=${library}`);
     await page.waitForFunction(() => Boolean(window.demo?.map));
     // Rendered view: Web Mercator coordinates at the container centre and 100 px right.
@@ -558,7 +560,7 @@ test("MAP-02: every map library opens with the same center and scale", async ({
   }
   const reference = views.openlayers;
   expect(reference.resolution).toBeCloseTo(2.1, 3);
-  for (const library of ["maplibre", "leaflet"]) {
+  for (const library of Object.keys(views).filter((l) => l !== "openlayers")) {
     // Same centre within a metre and same scale within 0.1 %.
     expect(
       Math.abs(views[library].center[0] - reference.center[0]),
@@ -577,7 +579,7 @@ test("MAP-03: every map library shows a crosshair while matching points", async 
     maplibre: ".maplibregl-canvas",
     leaflet: ".leaflet-container",
   };
-  for (const library of ["openlayers", "maplibre", "leaflet"]) {
+  for (const library of await mapLibraries(page)) {
     await page.goto(`/?map=${library}`);
     await page.getByRole("button", { name: "Try the Hamburg example" }).click();
     await expect(page.locator(".rg-instruction")).toContainText(
@@ -629,15 +631,16 @@ test("MAP-04: wheel zoom keeps the map covered while tiles load", async ({
       },
     });
   });
-  for (const library of ["openlayers", "maplibre", "leaflet"]) {
+  for (const library of await mapLibraries(page)) {
     await page.goto(`/?map=${library}`);
     await page.waitForFunction(() => Boolean(window.demo?.map));
     await page.waitForTimeout(1500);
     const map = page.locator(".workshop-map");
     const box = (await map.boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-    let worst = 0;
-    for (let i = 0; i < 12; i++) {
+    let total = 0;
+    const steps = 12;
+    for (let i = 0; i < steps; i++) {
       await page.mouse.wheel(0, i < 6 ? -100 : 100);
       await page.waitForTimeout(40);
       const shot = (await map.screenshot()).toString("base64");
@@ -662,8 +665,10 @@ test("MAP-04: wheel zoom keeps the map covered while tiles load", async ({
           if (near(p, [221, 221, 221]) || near(p, [223, 229, 223])) count++;
         return count / (pixels.length / 4);
       }, shot);
-      worst = Math.max(worst, blank);
+      total += blank;
     }
-    expect(worst, library).toBeLessThan(0.6);
+    // Single frames vary with machine speed; the average separates a map that keeps
+    // its tiles while zooming from one that resets them on every step.
+    expect(total / steps, library).toBeLessThan(0.15);
   }
 });

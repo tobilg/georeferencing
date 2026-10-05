@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import { type Page, test } from "@playwright/test";
 import type {} from "./harness/validation.js";
 
 /** One editor from the shared validation harness; no public demo shortcuts required. */
@@ -90,4 +90,27 @@ export async function loadSynthetic(page: Page, references = false) {
   await page.waitForFunction(() =>
     Boolean(window.validation.editors[0].controller.getSnapshot().fit),
   );
+}
+
+/** Why MapLibre checks are skipped in a browser without WebGL2. */
+export const NO_WEBGL2 =
+  "MapLibre requires WebGL2, which this browser cannot create here (headless Firefox on Linux CI runners without a GPU)";
+
+/** Whether the browser can create a WebGL2 context, which MapLibre requires. */
+export function hasWebGL2(page: Page): Promise<boolean> {
+  return page.evaluate(() =>
+    Boolean(document.createElement("canvas").getContext("webgl2")),
+  );
+}
+
+/**
+ * The demo's map libraries that can run in this browser. MapLibre is left out, with a
+ * test annotation, when WebGL2 is unavailable.
+ */
+export async function mapLibraries(page: Page): Promise<string[]> {
+  if (await hasWebGL2(page)) return ["openlayers", "maplibre", "leaflet"];
+  test
+    .info()
+    .annotations.push({ type: "skipped library", description: NO_WEBGL2 });
+  return ["openlayers", "leaflet"];
 }
