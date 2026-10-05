@@ -44,8 +44,9 @@ import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 setWorkerUrl(workerUrl);
 ```
 
-The `?url` suffix is Vite syntax; other bundlers have their own way to emit an asset
-and return its URL.
+The `?url` suffix is Vite syntax; TypeScript knows it through Vite's client types
+(`"types": ["vite/client"]` in `tsconfig.json`, included in Vite's templates). Other
+bundlers have their own way to emit an asset and return its URL.
 
 ## Use with the React editor
 

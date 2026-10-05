@@ -29,7 +29,9 @@ npm install @georeferencing/react @georeferencing/plugins react react-dom
 Peers: `@georeferencing/core` (same version as this package), Leaflet `^1.9.4`, and
 optionally `terra-draw` `^1.36.0` with `terra-draw-leaflet-adapter` `^1.3.0`. Install
 the same version of every `@georeferencing/*` package. Import
-`leaflet/dist/leaflet.css` as for any Leaflet map.
+`leaflet/dist/leaflet.css` as for any Leaflet map. TypeScript projects also need
+Leaflet's type declarations, which this package's types refer to:
+`npm install -D @types/leaflet`.
 
 ## Use with the React editor
 

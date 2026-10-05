@@ -17,7 +17,7 @@ setup (controller, engine, exports and saving), start with
 | --- | --- |
 | OpenLayers | `@georeferencing/openlayers ol` |
 | MapLibre GL JS | `@georeferencing/maplibre maplibre-gl`, plus `terra-draw terra-draw-maplibre-gl-adapter` for drawing |
-| Leaflet | `@georeferencing/leaflet leaflet`, plus `terra-draw terra-draw-leaflet-adapter` for drawing |
+| Leaflet | `@georeferencing/leaflet leaflet`, plus `terra-draw terra-draw-leaflet-adapter` for drawing and `@types/leaflet` for TypeScript |
 
 Install them next to `@georeferencing/core`, `@georeferencing/react`, `react` and
 `react-dom`, all `@georeferencing/*` packages in the same version:
@@ -66,7 +66,8 @@ editor. If your map already exists, skip the hook and create the adapter with
 - Import `maplibre-gl/dist/maplibre-gl.css`; without it, control-point markers are
   placed incorrectly.
 - Set the worker URL once before creating maps. Bundlers do not emit MapLibre's worker
-  on their own; the example shows the Vite syntax.
+  on their own; the example shows the Vite syntax, which TypeScript knows through
+  Vite's client types (`"types": ["vite/client"]`).
 - Previews are rendered in Web Mercator while the adapter is attached, whatever the
   working CRS.
 - Pass `beforeId` in the adapter options to insert the editor's layers below an
