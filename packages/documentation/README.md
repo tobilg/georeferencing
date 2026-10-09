@@ -75,6 +75,7 @@ and the [demo](https://github.com/tobilg/georeferencing/blob/main/packages/demo/
 | `@georeferencing/matching` | Pixel contracts, snapshots/WMS, coordinate helpers and explicit controller application; no UI |
 | `@georeferencing/matching/browser`, `/node` | Lazy executors for browser workers and Node worker threads |
 | `@georeferencing/matching/openlayers` | Optional WMS/loaded-vector reference acquisition |
+| `@georeferencing/matching/leaflet`, `@georeferencing/matching/maplibre` | Optional WMS reference acquisition from Leaflet and MapLibre layers |
 | `@georeferencing/react` | Ready-made editor, panels, types and subscription hook |
 | `@georeferencing/react/styles.css` | Optional scoped editor styles |
 

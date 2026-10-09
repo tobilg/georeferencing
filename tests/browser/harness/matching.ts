@@ -4,12 +4,25 @@ import type {
   Detector,
   MatchRequest,
   MatchResult,
+  ReferenceProvider,
+  ReferenceSelection,
 } from "@georeferencing/matching";
 import { createSnapshot, createWmsProvider } from "@georeferencing/matching";
 import {
   createBrowserMatcher,
   decodeReferenceImage,
 } from "@georeferencing/matching/browser";
+import {
+  createLeafletProvider,
+  leafletSelection,
+} from "@georeferencing/matching/leaflet";
+import {
+  createMapLibreProvider,
+  mapLibreSelection,
+} from "@georeferencing/matching/maplibre";
+import L from "leaflet";
+import { Map as MapLibreMap, setWorkerUrl } from "maplibre-gl";
+import maplibreWorker from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { cropPixels, syntheticPlan } from "../../fixtures/matching.js";
 
 const matcher = createBrowserMatcher(),
@@ -203,12 +216,85 @@ async function wms() {
     result: await matcher.match({ ...request, reference }),
   };
 }
+/**
+ * Acquire through a real Leaflet WMS layer or MapLibre WMS raster source on a live
+ * map, so the providers are exercised against each library's actual layer state.
+ */
+async function adapterWms(adapter: "leaflet" | "maplibre") {
+  const container = document.createElement("div");
+  Object.assign(container.style, { width: "640px", height: "480px" });
+  document.body.append(container);
+  const endpoint = new URL("/matching-wms", location.href).href,
+    selection = {
+      extent: [0, 0, 640, 640] as [number, number, number, number],
+      resolution: 1,
+      crs: "EPSG:3857",
+      layers: ["ivl"],
+    };
+  let remove = () => {};
+  try {
+    let provider: ReferenceProvider, view: ReferenceSelection;
+    if (adapter === "leaflet") {
+      const map = L.map(container).setView([53.55, 10], 12),
+        layer = L.tileLayer
+          .wms(`${endpoint}?map=plan`, {
+            layers: "ivl",
+            styles: "engineering",
+            time: "2026-10-08",
+            cql_filter: "status=1",
+            // Leaflet forwards extra options as WMS parameters; its types omit them.
+          } as L.WMSOptions)
+          .addTo(map);
+      remove = () => map.remove();
+      provider = createLeafletProvider([{ id: "ivl", layer, revision: "v1" }]);
+      view = leafletSelection(map, ["ivl"]);
+    } else {
+      setWorkerUrl(maplibreWorker);
+      const map = new MapLibreMap({
+        container,
+        center: [10, 53.55],
+        zoom: 12,
+        style: {
+          version: 8,
+          sources: {
+            ivl: {
+              type: "raster",
+              tileSize: 256,
+              tiles: [
+                `${endpoint}?service=WMS&request=GetMap&version=1.3.0&layers=ivl&styles=engineering&format=image/png&transparent=true&crs=EPSG:3857&width=256&height=256&bbox={bbox-epsg-3857}&time=2026-10-08`,
+              ],
+            },
+          },
+          layers: [{ id: "ivl-layer", type: "raster", source: "ivl" }],
+        },
+      });
+      remove = () => map.remove();
+      // The provider reads only the style; "load" would also wait for tiles and WebGL.
+      if (!map.isStyleLoaded())
+        await new Promise((resolve) => map.once("style.load", resolve));
+      provider = createMapLibreProvider([
+        { id: "ivl", map, layer: "ivl-layer", revision: "v1" },
+      ]);
+      view = mapLibreSelection(map, ["ivl"]);
+    }
+    const reference = await provider.acquire(selection);
+    return {
+      view,
+      reference: { extent: reference.extent, source: reference.source },
+      result: await matcher.match({ ...request, reference }),
+    };
+  } finally {
+    remove();
+    container.remove();
+  }
+}
 declare global {
   interface Window {
     matching: {
       oriented: typeof oriented;
       referencePng: typeof referencePng;
       wms: typeof wms;
+      adapterWms: typeof adapterWms;
       synthetic: typeof synthetic;
       cancellation: typeof cancellation;
       real: typeof real;
@@ -221,6 +307,7 @@ window.matching = {
   oriented,
   referencePng,
   wms,
+  adapterWms,
   synthetic,
   cancellation,
   real,

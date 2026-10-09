@@ -1,6 +1,6 @@
 {
   "name": "@georeferencing/leaflet",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Leaflet map adapter for georeferencing: overlay, control points, drawing (Terra Draw), snapping and reference layers",
   "license": "MIT",
   "type": "module",

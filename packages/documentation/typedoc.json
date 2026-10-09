@@ -21,7 +21,9 @@
     "../matching/src/index.ts",
     "../matching/src/browser.ts",
     "../matching/src/node.ts",
-    "../matching/src/openlayers.ts"
+    "../matching/src/openlayers.ts",
+    "../matching/src/leaflet.ts",
+    "../matching/src/maplibre.ts"
   ],
   "tsconfig": "tsconfig.api.json",
   "entryPointStrategy": "resolve",

@@ -1,92 +1,291 @@
 # @georeferencing/matching
 
-Optional, local plan-image matching in browser workers and Node 22.12+. No service,
-CDN or telemetry is used. This package ships no UI components, styles, or React
-dependency. Applications own their controls, progress display, candidate previews
-and review/apply interactions. Install this package alongside the same version of `@georeferencing/core`. Existing manual
-georeferencing imports do not load matching or OpenCV.
+Finds where a scanned or exported plan lies on a reference map, and proposes control
+points for it.
 
-```ts
-import { createSnapshot } from '@georeferencing/matching';
-import { createNodeMatcher } from '@georeferencing/matching/node';
+Matching runs locally, in a browser Web Worker or a Node worker thread, with a
+bundled OpenCV WebAssembly build. No server, CDN or telemetry is involved. The
+package ships no UI: your application owns the controls, progress display,
+candidate previews and the decision to apply a match. Applications that never call
+matching never load it or OpenCV.
 
-// query and referencePixels: { width, height, data: Uint8Array }, packed RGBA.
-// Decode/normalize EXIF first using your preferred Node image decoder.
-const reference = createSnapshot({
-  id: 'plan-revision-7', width: referencePixels.width,
-  height: referencePixels.height, crs: 'EPSG:3857',
-  extent: [xmin, ymin, xmax, ymax],
-  source: { id: 'engineering', revision: '7', layers: ['ivl'] },
-  tiles: [{ ...referencePixels, x: 0, y: 0 }],
-});
-const matcher = createNodeMatcher();
-try {
-  const result = await matcher.match({ query, reference }, {
-    signal: abortController.signal,
-    onProgress: ({ stage }) => console.log(stage),
-  });
-  console.log(result.status, result.candidates);
-} finally { matcher.dispose(); }
+## How it works
+
+1. **Capture the search area.** A _reference snapshot_ holds the pixels of the map
+   area to search, plus where they lie on the map: CRS, extent and pixel-to-map
+   transform. Providers fetch it from a WMS server or render it from map layers.
+2. **Match.** A matcher compares the plan (the _query_) with the snapshot and
+   returns ranked _candidates_: possible placements with the evidence for each.
+3. **Review and apply.** The user inspects the candidates. Only on explicit
+   acceptance does `applyCandidate` add control points to the editor, as one
+   undoable edit.
+
+## Install
+
+```sh
+npm install @georeferencing/core @georeferencing/matching
 ```
 
-In a browser, import `createBrowserMatcher` from `/browser` instead. With Vite,
-its default module worker and local `.wasm` asset are emitted automatically.
-For another bundler, supply `workerFactory: () => new Worker(workerUrl,
-{ type: 'module' })` and optionally `wasmUrl`. Exports `/worker`, `/opencv.js` and
-`/opencv.wasm` support host-controlled asset copying. Preserve the worker's relative
-`vendor/opencv.js` and `vendor/opencv.wasm` paths when copying files directly.
-Use `application/wasm`, same-origin worker/asset requests and CSP `script-src 'self'
-'wasm-unsafe-eval'; worker-src 'self'`. Neither SIMD nor cross-origin isolation is
-required. Node resolves assets beside the installed package; an override must be
-a local filesystem path supported by Emscripten.
+Use the same version of both packages. A reference provider additionally needs the
+map library you already use: `ol@10`, `leaflet@1` (with `@types/leaflet` for
+TypeScript) or `maplibre-gl@6`.
 
-## Public API and guide
+## Entry points
 
-| Entry point | Purpose |
+| Import | Use it for |
 | --- | --- |
-| `@georeferencing/matching` | Pixel/result contracts, snapshot/WMS providers, numerical coordinate helpers and explicit controller application |
-| `@georeferencing/matching/browser` | Lazy browser worker executor and normalized-blob decoding |
-| `@georeferencing/matching/node` | Lazy Node worker-thread executor |
-| `@georeferencing/matching/openlayers` | Optional browser reference acquisition for configured WMS or loaded vector layers |
-| `/worker`, `/opencv.js`, `/opencv.wasm` | Host-controlled worker/backend assets; not UI or ordinary application imports |
+| `@georeferencing/matching` | Types, snapshots, WMS acquisition, coordinate helpers and applying a candidate |
+| `@georeferencing/matching/browser` | `createBrowserMatcher()` and `decodeReferenceImage()` |
+| `@georeferencing/matching/node` | `createNodeMatcher()` |
+| `@georeferencing/matching/openlayers` | Snapshots from an OpenLayers WMS source or loaded vector layers |
+| `@georeferencing/matching/leaflet` | Snapshots from an `L.tileLayer.wms` layer |
+| `@georeferencing/matching/maplibre` | Snapshots from a WMS-backed MapLibre raster layer |
+| `/worker`, `/opencv.js`, `/opencv.wasm` | Worker and WASM assets, for hosts that copy them manually |
 
-See the [matching guide](https://github.com/tobilg/georeferencing/blob/main/packages/documentation/guides/matching.md)
-for typed browser/Node and host review/application examples. Public source comments
-and shipped declarations document ownership, coordinate units, defaults, errors and
-cleanup; `pnpm docs:build` includes all four API entries in the documentation site.
+The root entry never starts a worker or loads WASM, React or a map library. The
+[matching guide](https://github.com/tobilg/georeferencing/blob/main/packages/documentation/guides/matching.md)
+has compiled examples for every entry; the generated API reference documents each
+option, default, coordinate space and error.
 
-## Data and coordinates
+## Quick start: browser
 
-All public pixel coordinates use normalized full-image edges: top-left `(0,0)`,
-Y down, first centre `(0.5,0.5)`. OpenCV centres, crops and resizing are converted
-explicitly. `queryRegion` is an optional rectangle in that same coordinate space.
-It defines the plan footprint; feature/colour exclusion never changes that region.
-Transparent pixels are composited over white and excluded from evidence. White
-paper remains valid data. `technical-plan` uses separate min/max contrast
-normalization; `generic` retains grayscale contrast. Optional `suppressColor`
-excludes strongly coloured features; leave it disabled when colour carries detail.
+```ts
+import {
+  createBrowserMatcher,
+  decodeReferenceImage,
+} from "@georeferencing/matching/browser";
+import {
+  createOpenLayersProvider,
+  openLayersSelection,
+} from "@georeferencing/matching/openlayers";
 
-Buffers are packed RGBA without row padding. Snapshot creation clones pixels and
-metadata, and executors structured-clone requests without detaching caller buffers.
-Do not mutate snapshot byte views. Snapshot metadata is frozen; map navigation does
-not change it. All tiles partition the same raster with integer offsets; explicit
-`valid: false` tiles or alpha-zero pixels represent missing data. Internal tile
-edges do not define coverage. Extraction windows read across acquisition seams.
+// 1. Capture the visible map area from a WMS layer the map already shows.
+const provider = createOpenLayersProvider([
+  { id: "ortho", layer: wmsLayer, revision: "2026" },
+]);
+const reference = await provider.acquire(openLayersSelection(map, ["ortho"]));
 
-`pixelToMap` is a row-major 3×3 matrix applied to column vectors. The default is an
-exact north-up edge mapping from `extent`; supply the exact matrix for rotated
-rasters. Nonlinear host mappings stay outside worker messages: provide a
-`pixelToMap` callback to `applyCandidate` and a matching host overlay renderer.
-No pixel polygon is advertised as longitude/latitude GeoJSON. CRS conversion and
-full-image domain validation on application use the existing core registry/fitter.
+// 2. Match the plan that is loaded in the editor.
+const query = await decodeReferenceImage(await controller.getNormalizedImage());
+const matcher = createBrowserMatcher();
+try {
+  const result = await matcher.match(
+    { query, reference },
+    { onProgress: ({ stage }) => console.log(stage) },
+  );
+  console.log(result.status, result.candidates);
+} finally {
+  matcher.dispose();
+}
+```
+
+With Leaflet or MapLibre only step 1 changes; see [Reference sources](#reference-sources).
+For repeated searches, keep one matcher per application view and dispose it when
+the view is destroyed.
+
+## Quick start: Node
+
+`@georeferencing/matching/node` provides one function, `createNodeMatcher()`. It
+runs the same engine as the browser on a worker thread, so a long job does not
+block the event loop and an abort can stop it at any time. Node has no image
+decoder or map renderer, so you supply both inputs as pixels:
+
+- **The plan:** packed RGBA from any decoder, with EXIF orientation applied.
+- **The search area:** fetched with `createWmsProvider`, which works with Node's
+  built-in `fetch`, or a georeferenced image you already have, wrapped with
+  `createSnapshot`.
+
+```ts
+import sharp from "sharp"; // any decoder works
+import {
+  createWmsProvider,
+  transform,
+  type PixelImage,
+} from "@georeferencing/matching";
+import { createNodeMatcher } from "@georeferencing/matching/node";
+
+async function decode(input: Blob | Uint8Array): Promise<PixelImage> {
+  const bytes =
+    input instanceof Blob ? new Uint8Array(await input.arrayBuffer()) : input;
+  const { data, info } = await sharp(bytes)
+    .rotate() // apply EXIF orientation
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  return { width: info.width, height: info.height, data: new Uint8Array(data) };
+}
+
+const query = await decode(planFileBytes);
+const reference = await createWmsProvider({
+  url: "https://example.org/wms",
+  source: { id: "orthophoto", revision: "2026", layers: ["ortho"] },
+  decode,
+}).acquire({
+  extent: [565000, 5930000, 567000, 5932000],
+  crs: "EPSG:25832",
+  resolution: 0.5, // map units per reference pixel
+  layers: ["ortho"],
+});
+
+const matcher = createNodeMatcher();
+try {
+  const result = await matcher.match({ query, reference });
+  const best = result.candidates[0];
+  if (result.status === "matched" && best) {
+    // Plan pixel → reference pixel (candidate) → map coordinates (snapshot).
+    const toMap = (p: [number, number]) =>
+      transform(reference.pixelToMap, transform(best.transform, p));
+    console.log(toMap([0, 0]), toMap([query.width, query.height]));
+  }
+} finally {
+  matcher.dispose();
+}
+```
+
+To turn the match into control points instead, pass it to `applyCandidate` with a
+core `GeoreferencerController`, which also runs in Node. Typical uses are batch
+georeferencing on a server, preprocessing pipelines and automated checks.
+
+## Reference sources
+
+| Map library | Built-in acquisition | Everything else |
+| --- | --- | --- |
+| OpenLayers (`/openlayers`) | One `ImageWMS`/`TileWMS` source, or selected loaded vector/WFS layers rendered in an isolated north-up map | Host provider |
+| Leaflet (`/leaflet`) | One `L.tileLayer.wms` layer | Host provider |
+| MapLibre (`/maplibre`) | One raster layer whose source tiles are WMS GetMap URLs with `{bbox-epsg-3857}` | Host provider; vector tiles are not captured |
+
+Every WMS path requests fresh images of exactly the selected area from the server,
+using the layer's own layers, styles, version, time, filters and vendor parameters.
+None reads the rendered map, so the layer may be hidden. Each entry also has a
+helper that turns the current view into a selection:
+
+```ts
+import {
+  createLeafletProvider,
+  leafletSelection,
+} from "@georeferencing/matching/leaflet";
+import {
+  createMapLibreProvider,
+  mapLibreSelection,
+} from "@georeferencing/matching/maplibre";
+
+// Leaflet: the selection uses the map's CRS.
+const fromLeaflet = createLeafletProvider([
+  { id: "ortho", layer: leafletWmsLayer, revision: "2026" },
+]);
+await fromLeaflet.acquire(leafletSelection(leafletMap, ["ortho"]));
+
+// MapLibre: `layer` is a style layer ID; the selection is EPSG:3857 and needs
+// zero pitch.
+const fromMapLibre = createMapLibreProvider([
+  { id: "ortho", map: maplibreMap, layer: "ortho-layer", revision: "2026" },
+]);
+await fromMapLibre.acquire(mapLibreSelection(maplibreMap, ["ortho"]));
+```
+
+The Leaflet and MapLibre entries do not import their library at runtime.
+
+**Any WMS server.** `createWmsProvider` takes an endpoint, a `decode` function and an
+optional `request` function for authentication. It requests bounded tiles inside
+the selection, rounds dimensions up and records the exact pixel-to-map mapping, and
+never substitutes another zoom level. It handles the latitude-first axis order of
+WMS 1.3 EPSG:4326; set `axisOrder` for other latitude-first CRSs. Requests run in
+sequence and can be cancelled. Service, CORS and loading failures reject explicitly.
+
+**Credentials** belong in the `request` closure, never in the source identity.
+Known credential parameter names are removed from snapshot metadata.
+
+**Other sources**, such as caller-rendered WFS or another raster, implement
+`ReferenceProvider` and build the result with `createSnapshot`. The snapshot must
+keep the selected extent, CRS, exact pixel-to-map mapping, source and style
+revision, and mark missing data. It copies the pixels and freezes its metadata, so
+it never keeps live map references.
+
+**OpenLayers vector capture** copies the currently loaded features and styles; it
+never runs feature loaders, so wait for WFS loading first. Style callbacks must be
+deterministic. The capture renders at pixel ratio 1, excludes editor overlays,
+needs an extent aligned to the resolution grid and is capped at 8 MP and 8,192
+pixels per side. Mixed WMS and vector selections need a host provider.
+
+## Reviewing and applying a match
+
+Build the review UI with the framework and map you already use:
+
+1. **Before acquiring**, capture `createApplicationToken(controller,
+   configurationRevision)`. Your revision string must change whenever source data or
+   styles, selected layers, extent, resolution, query region or matching options
+   change.
+2. **Acquire** a snapshot with a provider, and decode the query from
+   `controller.getNormalizedImage(signal)`.
+3. **Match** with an abort signal, and show progress. Cancel and discard results
+   when the image, alignment or configuration changes.
+4. **Present** the ranked candidates with their coverage and uncertainty.
+   `footprint` and `overlap` are in reference pixels: draw them through
+   `transform(snapshot.pixelToMap, point)`, or `densifyBoundary` for nonlinear
+   mappings. Style the observed overlap differently from the extrapolated footprint.
+5. **Apply** only on explicit acceptance:
+
+```ts
+import { applyCandidate, createApplicationToken } from "@georeferencing/matching";
+
+const token = createApplicationToken(controller, configurationRevision);
+// … acquire `reference`, run `result = await matcher.match(…)`, let the user pick
+// `candidate` from `result.candidates` …
+applyCandidate(controller, result, candidate, reference, token, {
+  configurationRevision, // must still equal the token's revision
+});
+```
+
+Application adds up to 16 spatially distributed points (`maxPoints`) with CRS and
+source provenance, within the core point limit. It fits and validates the full
+image first and rejects stale results with `STALE`. By default it merges with the
+existing points and keeps the document's fit model; offer `mode: "replace"` or
+`model: "candidate"` (adopt the matched model) only as explicit user choices.
+Then continue with the usual alignment review and export.
+
+The demo's
+[MatchingPanel](https://github.com/tobilg/georeferencing/blob/main/packages/demo/MatchingPanel.tsx)
+and [overlay renderer](https://github.com/tobilg/georeferencing/blob/main/packages/demo/matching-overlays.ts)
+show one way to build this; they are examples, not exports. The React editor's
+optional `matchingPanel` slot accepts your own content. To try it, run `pnpm dev`
+in the repository, choose OpenLayers, then **Find points automatically** and
+**Load example image**.
+
+## Understanding results
+
+| Status | Meaning |
+| --- | --- |
+| `matched` | The best validated candidate is clearly ahead of the others |
+| `ambiguous` | Several validated candidates have similar scores; let the user inspect each |
+| `not-found` | Not enough evidence; this does not prove the plan is absent |
+
+A candidate needs at least 12 independent correspondences, but that alone is not
+enough. Collinear points, projective poles, mirrored or collapsed footprints,
+repeated glyphs, and weak or unstable fits are rejected. Repeated copies of a plan
+in the reference all survive as separate candidates.
+
+| Candidate field | Meaning |
+| --- | --- |
+| `score` | Ranking measure (`evidence/1`), **not a probability**; a strong partial candidate can outrank a weak complete one |
+| `transform` | 3×3 matrix from plan pixels to reference pixels |
+| `footprint`, `overlap` | The plan's outline, and its part inside the search area, in reference pixels |
+| `extentStatus` | `complete`, or `partial` when the plan extends beyond the search area (one-pixel tolerance) |
+| `overlapFraction` | Share of the plan region inside the search area |
+| `referenceDataCoverage` | Share of the plan region with actual source pixels behind it |
+| `supportCoverage` | Area covered by the matched points, relative to the observable overlap |
+| `independentInliers`, `medianError`, `p95Error` | Amount of evidence, and residuals in reference pixels (not survey accuracy) |
+
+The three coverage values measure different things and are not interchangeable.
+Matching independently drawn styles is never universally reliable: keep a manual
+review step.
 
 ## Choose a detector
 
-`options.detector` selects how features are found and compared. SIFT is the default;
-AKAZE is used only when a request sets `detector: "akaze"`. Both detectors ship in
-the same WASM file, run the same search and the same acceptance checks, and are
-covered by the same tests. The detector changes how much evidence is found and how
-fast, never what counts as a valid match.
+`options.detector` selects how features are found and compared. SIFT is the
+default; AKAZE is used only when a request sets `detector: "akaze"`. Both ship in
+the same WASM file, run the same search and acceptance checks, and are covered by
+the same tests. The detector changes how much evidence is found and how fast,
+never what counts as a valid match.
 
 | | SIFT (default) | AKAZE |
 | --- | --- | --- |
@@ -98,169 +297,127 @@ fast, never what counts as a valid match.
 | Benchmark plans matched | 8 of 8 | 6 of 8 |
 | Corner error when matched | 0.05–1.2 px | 0.02–1.0 px |
 
-Times are single-worker Node measurements on an Apple M2 from the repository's
-matching benchmark; compare the ratios rather than the absolute values. The up-front
-memory budget check is the same for both detectors.
+Times are single-worker Node measurements on an Apple M2; compare the ratios rather
+than the absolute values. The up-front memory budget check is the same for both.
 
-**Use SIFT** when one reliable attempt matters more than speed, and especially when:
+**Use SIFT** when one reliable attempt matters more than speed, especially when:
 
 - the plan's scale differs noticeably from the reference, for example a scan at a
   lower resolution than the reference tiles;
 - annotations, stamps, coloured markup or handwriting cover the linework;
 - the plan only partly overlaps the search area, or a small plan is searched in a
-  large area. More matched points leave more margin over the acceptance checks.
+  large area.
 
 **Use AKAZE** when speed or memory matters and the input is favourable:
 
 - interactive re-runs while a user adjusts the search area, batch jobs over many
   plans, or memory-constrained browsers;
-- clean plans at roughly the reference's scale, such as exports from the same CAD or
-  GIS source, or scans resampled to the reference resolution;
+- clean plans at roughly the reference's scale, such as exports from the same CAD
+  or GIS source;
 - when you can retry with SIFT after a `not-found`.
 
-AKAZE finds fewer matching points on hard input. When that is too few, it returns
-`not-found` rather than a different placement: in the benchmark it misses the plan
-scaled to 65% and the warped, heavily annotated plan, which SIFT both matches. A
-fallback keeps most of AKAZE's speed:
+AKAZE finds fewer matching points on hard input. When that is too few it returns
+`not-found`, never a different placement. A fallback keeps most of its speed:
 
 ```ts
-let result = await matcher.match({ ...request, options: { detector: "akaze" } });
+let result = await matcher.match({
+  ...request,
+  options: { detector: "akaze" },
+});
 if (result.status === "not-found")
   result = await matcher.match({ ...request, options: { detector: "sift" } });
 ```
 
-A matcher caches the reference features of its last request only, keyed by detector
-and options. Alternating detectors on one matcher therefore extracts the reference
-again on every switch; keep one matcher per detector if you alternate repeatedly.
+A matcher caches the reference features of its last request only, keyed by
+detector and options. If you alternate detectors repeatedly, keep one matcher per
+detector.
 
-## Results and acceptance
+## Pixels and coordinates
 
-Candidates are ordered by independent support, its spatial distribution,
-distinctiveness, residuals, split-fit stability and structural agreement. Score
-version `evidence/1` is a ranking measure, **not a probability**. A stronger partial
-candidate can outrank a weaker complete one. Repeated reference copies survive
-candidate generation; duplicate transforms are merged. Repetitive query glyphs,
-collinearity, poles, mirrored or collapsed footprints, weak and unstable fits are rejected.
-At least 12 independent correspondences are required; this alone is insufficient.
+- Images are packed RGBA without row padding. Pixel coordinates are image edges:
+  top-left `(0, 0)`, Y down, first pixel centre `(0.5, 0.5)`.
+- `queryRegion` optionally limits matching to a rectangle of the plan, in the same
+  coordinates. It defines the plan footprint.
+- Transparent pixels count as missing data; white paper is valid data. Tiles with
+  `valid: false` also mark missing data. Tiles partition the raster, and their
+  seams do not affect matching.
+- `profile: "technical-plan"` normalizes contrast; `"generic"` keeps it.
+  `suppressColor` ignores strongly coloured features; leave it off when colour
+  carries detail.
+- `pixelToMap` is a row-major 3×3 matrix. The default is the exact north-up mapping
+  of `extent`; supply the exact matrix for rotated rasters. For a nonlinear mapping,
+  pass a `pixelToMap` callback to `applyCandidate` and draw overlays with the same
+  mapping.
+- Snapshots and requests are copied, never transferred, so caller buffers stay
+  usable. Do not mutate a snapshot's pixel data.
 
-- `matched`: the top validated candidate has a sufficient score gap.
-- `ambiguous`: validated alternatives have similar scores; inspect each one.
-- `not-found`: insufficient evidence, not proof that the plan is absent.
+## Limits and memory
 
-`overlapFraction` is the area of the selected **query** region inside the search
-area, computed by inverse mapping the clipped footprint. `referenceDataCoverage`
-separately measures available source pixels as a fraction of the full query region
-(alpha coverage uses a deterministic grid). `supportCoverage` is the correspondence
-hull divided by observable overlap. These three quantities are not interchangeable.
-`extentStatus` uses a one-reference-pixel boundary tolerance; the unrounded overlap
-fraction is still returned. Hosts should distinguish extrapolation beyond the
-observed overlap when rendering footprints. Residuals are in original reference pixels, not survey accuracy.
+| Limit | Default |
+| --- | --- |
+| Plan image (`maxQueryPixels`) | 25 MP |
+| Reference (`maxReferencePixels`) | 32 MP, at most 4,096 tiles |
+| Memory reservation (`maxMemoryBytes`) | 1 GiB, enough for both at once |
+| Features (`maxFeatures`, `featuresPerTile`) | 24,000 per image, 1,600 per processing window |
+| Candidates (`maxCandidates`) | 5 |
+| Image side | 32,768 pixels at most |
+| WASM heap | 512 MiB hard maximum |
 
-## Sources and editor
+The memory estimate covers input copies, descriptors and the WASM heap, not browser,
+GPU or decoder memory. Raising it does not provision memory. One reference feature
+cache is kept per matcher and cleared on disposal.
 
-`createWmsProvider` accepts a host endpoint, request function and decoder. It
-preserves WMS layers/styles/filters/time, selected extent and actual resolution,
-assembles bounded tiles inside the selected area, and handles WMS 1.3 EPSG:4326
-latitude/longitude order. Set `axisOrder` for other latitude-first CRSs. Noninteger
-extent/resolution ratios are rounded up in dimensions and the actual pixel-to-map
-mapping is recorded; there is no substitution of a different zoom level. Requests
-are sequential and cancellable. Service, CORS and loading failures are explicit.
-Credentials belong in host request closures, never source identity/provenance.
-Known credential parameter names are removed from snapshot metadata.
+When the core worker engine should accept plans this large, create it with
+`MATCHING_CORE_LIMITS` (25 MP input, 64 MiB encoded, 1 GiB memory). Core's separate
+24 MP **output** limit is unchanged; raise it only if your export fits in memory.
 
-Any provider can supply rendered WFS pixels. Node parity covers matching and the
-snapshot contract, not browser style rendering. Node can decode WMS responses using
-its own decoder.
+## Cancellation, lifecycle and errors
 
-| Adapter | Native matching reference | Host-provider route |
-| --- | --- | --- |
-| OpenLayers (`/openlayers`) | One configured WMS source, or selected loaded vector/WFS layers rendered in an isolated north-up map | Yes |
-| MapLibre | No built-in selected-layer snapshot; existing PDF capture is insufficient | Yes; host renders an exact unpitched snapshot |
-| Leaflet | No built-in selected-layer readback | Yes; WMS acquisition or host-rendered pixels |
+A matcher runs one job at a time. Aborting terminates its worker, even inside
+WebAssembly, and the next job starts a fresh one. A second concurrent job rejects
+with `BUSY`; any job after `dispose()` rejects with `DISPOSED`. Only data crosses
+the worker boundary, never callbacks, signals or map objects.
 
-OpenLayers vector capture copies currently loaded features and style configuration;
-wait for host WFS loading before acquisition. Style callbacks must be deterministic
-and independent of mutable host state. No feature loader is triggered on the copy.
-Vector capture requires an extent aligned to the resolution grid, is capped at
-8 MP/8192 pixels per side, uses pixel ratio 1, and excludes editor overlays.
-Unknown raster renderers and mixed WMS/vector compositions require a host provider.
+| Error | What to do |
+| --- | --- |
+| `INPUT` | Fix the image buffers, query region, selection or options |
+| `BUDGET` | Reduce the image or search area, or set a measured memory budget; applying also needs free point slots |
+| `SOURCE` | Fix reference loading, credentials, CORS, rendering or decoding; do not report it as not-found |
+| `BACKEND` | Check worker and WASM URLs, CSP and asset versions |
+| `BUSY` | Wait for or abort the current job |
+| `DISPOSED` | Create a new matcher |
+| `STALE` | Discard the old review and match the current inputs again |
+| `GEOMETRY` | Reject the invalid mapping and keep the manual work |
+| `AbortError` | The job was cancelled; do not show it as a failure |
 
-## Build your application's matching UI
+## Deployment
 
-Use the headless APIs with your preferred UI framework. The package does not
-provide a React entry point or stylesheet. Reference acquisition is separate from
-matching; the optional OpenLayers entry captures pixels and does not draw results.
+- **Vite** emits the module worker and the local `.wasm` file automatically.
+- **Other bundlers:** pass `workerFactory: () => new Worker(workerUrl, { type:
+  "module" })` and optionally `wasmUrl` to `createBrowserMatcher`. The factory must
+  return a new dedicated worker each time; never a shared one.
+- **Copying assets manually:** use the `/worker`, `/opencv.js` and `/opencv.wasm`
+  exports and keep the worker's relative `vendor/opencv.js` and `vendor/opencv.wasm`
+  paths.
+- **Serving:** `application/wasm`, same-origin assets and CSP
+  `script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'`. Neither SIMD nor
+  cross-origin isolation is required.
+- **Node** loads the assets from the installed package; a `wasmUrl` override must be
+  an absolute local file path.
 
-1. Capture a `createApplicationToken(controller, configurationRevision)` before
-   acquisition. The host revision must cover source data/styles, selected layers,
-   extent, resolution, query region and matching configuration.
-2. Acquire a `ReferenceSnapshot` with a provider. Decode the query from
-   `controller.getNormalizedImage(signal)` with `decodeReferenceImage` in a browser,
-   or supply normalized RGBA from your own decoder.
-3. Call `matcher.match`, pass an abort signal and render its progress in your UI.
-   Cancel and invalidate results when the image, alignment or host configuration
-   changes. Keep an application job/generation ID to discard late acquisition work.
-4. Present ranked candidates and their coverage/uncertainty. `footprint` and
-   `overlap` are reference pixels, so map them with `transform(snapshot.pixelToMap,
-   point)` and your map projection. For nonlinear mappings use `densifyBoundary`.
-   Style observed overlap separately from extrapolated footprint in your own map.
-5. Only on explicit user acceptance, call `applyCandidate` with the original result,
-   selected candidate object, snapshot/token and current configuration revision.
-   The default merges manual points and keeps the document's fit model; offer
-   replacement, or `model: "candidate"` to adopt the matched model, only by explicit choice.
+## Backend and licences
 
-Application is one undoable controller edit, with up to 16 distributed proposed
-points by default, explicit CRS/source provenance and the core control-point cap.
-It fits/validates the full image before mutation, and rejects stale results. Continue
-through the existing alignment review and export/save flow after adding points.
+The backend is a trimmed, single-threaded, scalar OpenCV 4.12.0 WASM build
+(Emscripten 6.0.8, about 4.4 MB uncompressed). On startup it checks SIFT, AKAZE,
+BFMatcher, findHomography and perspectiveTransform.
+`dist/licenses/opencv-provenance.json` records exact hashes and build flags; the
+Apache, BSD and third-party notices ship with the assets. Rebuild it with
+`bash scripts/matching/build-opencv.sh` in the repository.
 
-The private demo's [MatchingPanel](https://github.com/tobilg/georeferencing/blob/main/packages/demo/MatchingPanel.tsx)
-and [overlay renderer](https://github.com/tobilg/georeferencing/blob/main/packages/demo/matching-overlays.ts)
-are examples for hosts to adapt, not library exports. The React editor's optional
-`matchingPanel` slot accepts host content; it does not import matching.
-Run `pnpm dev`, choose OpenLayers, then **Find points automatically** and **Load
-example image**. The existing four steps remain unchanged. The demo uses
-project-owned generated marks; use your actual reference plan layers in your app.
+## Development
 
-## Resources and lifecycle
-
-Default limits: 25 MP query, 32 MP reference, 1 GiB reservation (enough for both at once), 24,000 features
-per image, 1,600 features per window, 1,024-pixel coarse edge and processing tiles
-with 96-pixel internal halos, five candidates, one active job. Dimensions are capped
-at 32,768 per side; references at 4,096 acquisition tiles. The WASM heap has a hard
-512 MiB maximum; live image matrices and descriptors are deleted after each unit.
-One content-checked reference feature cache is retained, and reset on disposal.
-The estimate includes input copies, descriptor storage and the capped WASM heap;
-it is not a guarantee about browser/GPU/host decoder memory.
-
-A 5,000×5,000 query was exercised on a 16 GiB Apple M2 with an explicit 1 GiB matching
-reservation. Use `MATCHING_CORE_LIMITS` when creating the existing core worker engine
-(25 MP input, 64 MiB encoded bytes, 1 GiB memory). Matching consumes decoded pixels;
-the caller enforces its encoded-byte limit before decoding. Core's default 24 MP
-**output** limit remains separate; increase only when the intended export fits the
-host's output memory budget. The original manual defaults are unchanged.
-
-Abort terminates the worker even during synchronous WASM and makes late messages
-irrelevant. The next request creates a fresh worker. Disposal is idempotent;
-requests afterward reject `DISPOSED`. Concurrent requests reject `BUSY`. Errors use
-`INPUT`, `BUDGET`, `BACKEND`, `SOURCE`, `STALE`, or `GEOMETRY`; cancellation is an
-`AbortError`. Worker messages carry a job ID and serialized progress/result/error;
-callbacks, signals, DOM nodes and map objects are never posted.
-
-## Backend and reproduction
-
-The shipped artifact is trimmed OpenCV 4.12.0, built with Emscripten 6.0.8, single
-threaded scalar WASM. Runtime startup checks SIFT, AKAZE, BFMatcher, findHomography
-and perspectiveTransform. SIFT is the default; AKAZE is a supported alternative with
-the trade-offs described under "Choose a detector". Detection is isolated in `features.ts`; executor/result contracts
-do not depend on a detector. The local artifact is about 4.4 MB uncompressed; see
-`dist/licenses/opencv-provenance.json` for exact hashes and flags. Build from source
-with `bash scripts/matching/build-opencv.sh` in the repository. Required Apache,
-BSD and third-party notices accompany the assets.
-
-Repository validation: `pnpm test:matching`, `pnpm benchmark:matching` (requires
-private local plans), `pnpm test:browser`, `pnpm test:consumer`, `pnpm release:check`.
-Synthetic fixtures are deterministic MIT-licensed source. Private image files and
-derived browser fixtures stay ignored under `plans/` and `artifacts/` and never ship.
-Matching independently drawn styles is not universally reliable: preserve manual
-review, and never interpret these fixture results as positional-accuracy guarantees.
+In the repository: `pnpm test:matching`, `pnpm test:browser`,
+`pnpm test:consumer` and `pnpm release:check`. `pnpm benchmark:matching` needs
+private plan images, which stay git-ignored under `plans/` and `artifacts/`; the
+synthetic fixtures are deterministic and MIT-licensed. Benchmark results are fixture
+measurements, not accuracy guarantees.

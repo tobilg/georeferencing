@@ -77,6 +77,30 @@ jobs:
           echo "packages=$PACKAGES" >> "$GITHUB_OUTPUT"
           echo "Release $VERSION (npm tag: $NPM_TAG, dry run: $DRY_RUN)"
 
+      # Trusted publishing can only be configured for packages that already exist on
+      # npm, so a new package needs a manual first publish. Stop before CI and before
+      # anything is published, instead of leaving a release half done.
+      - name: Check every package exists on npm
+        env:
+          PACKAGES: ${{ steps.version.outputs.packages }}
+        run: |
+          MISSING=""
+          for pkg in $PACKAGES; do
+            STATUS=$(curl -sS --retry 3 -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/@georeferencing%2f$pkg")
+            case "$STATUS" in
+              200) ;;
+              404) MISSING="$MISSING @georeferencing/$pkg" ;;
+              *)
+                echo "::error::The npm registry returned HTTP $STATUS for @georeferencing/$pkg."
+                exit 1
+                ;;
+            esac
+          done
+          if [ -n "$MISSING" ]; then
+            echo "::error::Not on npm yet:$MISSING. Publish their first version manually and add their trusted publishers before releasing (see RELEASING.md)."
+            exit 1
+          fi
+
   ci:
     needs: version
     uses: ./.github/workflows/ci.yml

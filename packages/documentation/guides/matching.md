@@ -16,8 +16,10 @@ needs with the framework and map renderer you already use.
 
 ```sh
 pnpm add @georeferencing/core @georeferencing/matching
-# Only for the optional OpenLayers reference provider:
-pnpm add ol@10
+# Only for a reference provider, the map library you already use:
+pnpm add ol@10            # /openlayers
+pnpm add leaflet@1        # /leaflet
+pnpm add maplibre-gl@6    # /maplibre
 ```
 
 Keep the core and matching versions aligned. Import the executor for your runtime;
@@ -30,6 +32,8 @@ library. No external processing service, telemetry or third-party CDN is require
 | {@link "@georeferencing/matching/browser"} | Browser worker factory and normalized-blob decoder |
 | {@link "@georeferencing/matching/node"} | Node worker-thread factory |
 | {@link "@georeferencing/matching/openlayers"} | Optional acquisition from configured WMS or loaded vector layers |
+| {@link "@georeferencing/matching/leaflet"} | Optional acquisition from an `L.tileLayer.wms` layer |
+| {@link "@georeferencing/matching/maplibre"} | Optional acquisition from a WMS-backed raster layer |
 
 The API pages document individual option defaults, coordinate spaces, ownership,
 errors and disposal. The examples below are compiled against public package exports.
@@ -59,6 +63,50 @@ The example explicitly reserves 1 GiB for a suitably provisioned host. Use a sma
 query/reference or limits appropriate to your environment; raising the budget does
 not provision physical memory.
 
+## End to end in Node
+
+`@georeferencing/matching/node` provides one function, `createNodeMatcher()`. It
+runs the same matching engine as the browser on a Node worker thread, so a long job
+does not block the event loop and an abort can stop it at any time. Results are
+identical to the browser's.
+
+Node has no image decoder or map renderer, so you supply both inputs as pixels:
+
+- **The plan** (`query`): packed RGBA from any decoder, with EXIF orientation
+  already applied.
+- **The search area** (`reference`): pixels plus their georeferencing. Fetch them
+  from a WMS server with `createWmsProvider`, which works in Node with the built-in
+  `fetch`, or wrap a georeferenced image you already have with `createSnapshot`.
+
+Any decoder works. With sharp, for example:
+
+```ts
+import type { PixelImage } from "@georeferencing/matching";
+import sharp from "sharp";
+
+async function decode(input: Blob | Uint8Array): Promise<PixelImage> {
+  const bytes =
+    input instanceof Blob ? new Uint8Array(await input.arrayBuffer()) : input;
+  const { data, info } = await sharp(bytes)
+    .rotate() // apply EXIF orientation
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  return { width: info.width, height: info.height, data: new Uint8Array(data) };
+}
+```
+
+With a decoder in place, fetch the search area, match and read the result:
+
+{@includeCode ../examples/matching-node-end-to-end.ts}
+
+`candidate.transform` maps plan pixels to reference pixels, and
+`reference.pixelToMap` maps reference pixels to map coordinates. Chaining both gives
+map coordinates for any plan pixel. To turn the match into control points instead,
+pass it to `applyCandidate` with a core `GeoreferencerController`, which also runs
+in Node. Typical uses are batch georeferencing on a server, preprocessing pipelines
+and automated checks.
+
 ## Acquire the selected reference area
 
 `createWmsProvider` accepts a host endpoint, request function and decoder. It
@@ -75,11 +123,19 @@ Any provider can supply rendered WFS pixels. Node parity covers matching and the
 snapshot contract, not browser style rendering. Node can decode WMS responses using
 its own decoder.
 
-| Adapter | Native matching reference | Host-provider route |
-| --- | --- | --- |
-| OpenLayers (`/openlayers`) | One configured WMS source, or selected loaded vector/WFS layers rendered in an isolated north-up map | Yes |
-| MapLibre | No built-in selected-layer snapshot; existing PDF capture is insufficient | Yes; host renders an exact unpitched snapshot |
-| Leaflet | No built-in selected-layer readback | Yes; WMS acquisition or host-rendered pixels |
+| Map library | Entry | Built-in reference acquisition | Everything else |
+| --- | --- | --- | --- |
+| OpenLayers | `/openlayers` | One `ImageWMS`/`TileWMS` source, or selected loaded vector/WFS layers rendered in an isolated north-up map | Host provider |
+| Leaflet | `/leaflet` | One `L.tileLayer.wms` layer | Host provider |
+| MapLibre | `/maplibre` | One raster layer whose source tiles are WMS GetMap URLs with `{bbox-epsg-3857}` | Host provider; vector tiles are not captured |
+
+Every WMS path requests fresh images of exactly the selected area from the server;
+none reads the rendered map, so the layer may be hidden. `openLayersSelection`,
+`leafletSelection` and `mapLibreSelection` turn the current view into a selection.
+Leaflet selections use the map's CRS; MapLibre selections are EPSG:3857 and require
+zero pitch. The Leaflet and MapLibre entries do not import their library at runtime.
+
+{@includeCode ../examples/matching-map-providers.ts}
 
 OpenLayers vector capture copies currently loaded features and style configuration;
 wait for host WFS loading before acquisition. Style callbacks must be deterministic
@@ -206,7 +262,7 @@ observed overlap when rendering footprints. Residuals are in original reference 
 
 Use the headless APIs with your preferred UI framework. The package does not
 provide a React entry point or stylesheet. Reference acquisition is separate from
-matching; the optional OpenLayers entry captures pixels and does not draw results.
+matching; the optional map entries capture pixels and do not draw results.
 
 1. Capture a `createApplicationToken(controller, configurationRevision)` before
    acquisition. The host revision must cover source data/styles, selected layers,

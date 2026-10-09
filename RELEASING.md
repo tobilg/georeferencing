@@ -92,7 +92,9 @@ npm publish ./artifacts/georeferencing-react-0.1.0.tgz --access public
 
 Packages added later (`openlayers`, `maplibre` and `leaflet` were added for 0.4.0)
 need the same bootstrap for their first version: publish only the new packages'
-tarballs manually, add their trusted publishers, then push the tag.
+tarballs manually, add their trusted publishers, then push the tag. The release
+workflow checks this first: if any public package is not on npm yet, it stops
+before running CI or publishing anything.
 
 Then push the `v0.1.0` tag. The release workflow skips the already-published
 packages and completes the Pages deployments and the GitHub release. Manually

@@ -18,6 +18,8 @@ for (const route of [
   "browser/",
   "node/",
   "openlayers/",
+  "leaflet/",
+  "maplibre/",
   "ImageMatcher/",
   "MatchOptions/",
   "ReferenceSnapshot/",
@@ -235,6 +237,8 @@ try {
     "matching/browser/createBrowserMatcher",
     "matching/node/createNodeMatcher",
     "matching/openlayers/createOpenLayersProvider",
+    "matching/leaflet/createLeafletProvider",
+    "matching/maplibre/createMapLibreProvider",
   ]) {
     await page.goto(`${base}_georeferencing/${route}/`);
     await expect(page.getByRole("heading", { level: 1 })).toContainText(

@@ -1,6 +1,6 @@
 {
   "name": "@georeferencing/core",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Headless browser georeferencing state, transforms, image processing and a map-adapter contract",
   "license": "MIT",
   "type": "module",

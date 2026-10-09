@@ -15,15 +15,11 @@ import type Source from "ol/source/Source.js";
 import TileWMS from "ol/source/TileWMS.js";
 import VectorSource from "ol/source/Vector.js";
 import View from "ol/View.js";
-import { decodeReferenceImage } from "./browser.js";
 import { validateSearchExtent } from "./geometry.js";
-import { createSnapshot, createWmsProvider } from "./reference.js";
-import type {
-  ReferenceProvider,
-  ReferenceSelection,
-  ReferenceSource,
-} from "./types.js";
+import { createSnapshot } from "./reference.js";
+import type { ReferenceProvider, ReferenceSelection } from "./types.js";
 import { MatchingError } from "./types.js";
+import { acquireWmsLayer, selectedReference } from "./wms-layer.js";
 /** Host-owned source layer eligible for reference acquisition. */
 export interface OpenLayersReference {
   /** Opaque layer identity selected through `ReferenceSelection.layers`. */
@@ -71,39 +67,24 @@ export function createOpenLayersProvider(
         selected[0]!.layer as BaseLayer & { getSource(): Source | null }
       ).getSource();
       if (source instanceof ImageWMS || source instanceof TileWMS) {
-        if (selected.length !== 1)
-          throw new MatchingError(
-            "SOURCE",
-            "Select one WMS source with its configured server layers, or supply a compositing host provider.",
-          );
-        const params = { ...source.getParams() },
+        const reference = selectedReference(references, selection),
           url =
             source instanceof ImageWMS
               ? source.getUrl()
               : source.getUrls()?.[0];
         if (!url)
           throw new MatchingError("SOURCE", "WMS has no configured URL.");
-        const layers = String(params.LAYERS ?? "").split(","),
-          styles = String(params.STYLES ?? "").split(",");
-        const provenance: ReferenceSource = {
-          id: selected[0]!.id,
-          revision: selected[0]!.revision,
-          layers,
-          styles,
-          parameters: Object.fromEntries(
-            ["TIME", "ELEVATION", "CQL_FILTER", "FILTER", "SLD_BODY"]
-              .filter((k) => params[k] !== undefined)
-              .map((k) => [k, String(params[k])]),
-          ),
-        };
-        return createWmsProvider({
-          url,
-          source: provenance,
-          parameters: params,
-          version: params.VERSION ?? "1.3.0",
-          request,
-          decode: decodeReferenceImage,
-        }).acquire({ ...selection, layers }, signal);
+        return acquireWmsLayer(
+          {
+            id: reference.id,
+            revision: reference.revision,
+            url,
+            parameters: source.getParams(),
+            request,
+          },
+          selection,
+          signal,
+        );
       }
       const layers = selected.map((r) => {
         const layer = r!.layer;

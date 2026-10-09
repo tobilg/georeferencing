@@ -274,3 +274,51 @@ test("WMS acquisition runs through HTTP and preserves the snapshot", async ({
     ),
   ).toBe("SOURCE");
 });
+for (const adapter of ["leaflet", "maplibre"] as const)
+  test(`${adapter} WMS layer acquisition requests the exact area and matches`, async ({
+    page,
+  }) => {
+    await page.goto("/matching.html");
+    await page.waitForFunction(() => !!window.matching);
+    const png = await page.evaluate(() => window.matching.referencePng());
+    // The live map also loads its own tiles; only the provider's requests use
+    // upper-case parameter names.
+    const requested: URL[] = [];
+    await page.route("**/matching-wms?*", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.searchParams.has("REQUEST")) requested.push(url);
+      await route.fulfill({
+        status: 200,
+        contentType: "image/png",
+        body: Buffer.from(png, "base64"),
+      });
+    });
+    const { view, reference, result } = await page.evaluate(
+      (a) => window.matching.adapterWms(a),
+      adapter,
+    );
+    expect(result.status).toBe("matched");
+    expect(reference.extent).toEqual([0, 0, 640, 640]);
+    expect(reference.source.parameters?.TIME).toBe("2026-10-08");
+    // Zoom 12: Leaflet's world is 256 CSS pixels wide at zoom 0, MapLibre's 512.
+    expect(view.crs).toBe("EPSG:3857");
+    expect(view.resolution).toBeCloseTo(
+      adapter === "leaflet" ? 38.2185 : 19.1093,
+      3,
+    );
+    expect(requested).toHaveLength(1);
+    const url = requested[0],
+      keys = [...url.searchParams.keys()].map((k) => k.toUpperCase());
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(url.searchParams.get("LAYERS")).toBe("ivl");
+    expect(url.searchParams.get("STYLES")).toBe("engineering");
+    expect(url.searchParams.get("WIDTH")).toBe("640");
+    // Leaflet defaults to WMS 1.1.1 (SRS); the MapLibre template asks for 1.3.0 (CRS).
+    expect(url.searchParams.get(adapter === "leaflet" ? "SRS" : "CRS")).toBe(
+      "EPSG:3857",
+    );
+    if (adapter === "leaflet") {
+      expect(url.searchParams.get("map")).toBe("plan");
+      expect(url.searchParams.get("CQL_FILTER")).toBe("status=1");
+    }
+  });

@@ -66,6 +66,7 @@ lists its classes, interfaces, functions and types.
 | {@link "@georeferencing/matching" @georeferencing/matching} | Shared pixel contracts, reference providers and explicit application |
 | {@link "@georeferencing/matching/browser" /matching/browser}, {@link "@georeferencing/matching/node" /matching/node} | Lazy browser and Node worker executors |
 | {@link "@georeferencing/matching/openlayers" /matching/openlayers} | Optional WMS/vector reference acquisition; hosts own matching UI and candidate rendering |
+| {@link "@georeferencing/matching/leaflet" /matching/leaflet}, {@link "@georeferencing/matching/maplibre" /matching/maplibre} | Optional WMS reference acquisition from Leaflet and MapLibre layers |
 | {@link "@georeferencing/openlayers" @georeferencing/openlayers} | `openLayers` adapter, `attachReferenceMap`, OpenLayers WFS/GML loading and map capture |
 | {@link "@georeferencing/maplibre" @georeferencing/maplibre} | `maplibre` adapter, `attachMapLibre` and map capture |
 | {@link "@georeferencing/leaflet" @georeferencing/leaflet} | `leaflet` adapter and `attachLeaflet` |

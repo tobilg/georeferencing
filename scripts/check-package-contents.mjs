@@ -116,6 +116,14 @@ for (const name of PUBLIC_PACKAGES) {
       ["dist/node.d.ts", "Create a lazy Node 22.12+ matcher"],
       ["dist/apply.d.ts", "Apply a reviewed candidate"],
       ["dist/reference.d.ts", "Acquire a frozen reference snapshot"],
+      [
+        "dist/leaflet.d.ts",
+        "Create a provider for one `L.tileLayer.wms` layer",
+      ],
+      [
+        "dist/maplibre.d.ts",
+        "Create a provider for one WMS-backed MapLibre raster layer",
+      ],
     ])
       assert(
         read(`package/${file}`).includes(contract),
