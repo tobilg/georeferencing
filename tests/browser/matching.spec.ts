@@ -8,6 +8,7 @@ import {
 } from "../../packages/matching/src/geometry.js";
 import type { Matrix3 } from "../../packages/matching/src/types.js";
 import type {} from "./harness/matching.js";
+import { hasWebGL2, NO_WEBGL2 } from "./helpers.js";
 
 test.use({ deviceScaleFactor: 2 });
 
@@ -279,6 +280,9 @@ for (const adapter of ["leaflet", "maplibre"] as const)
     page,
   }) => {
     await page.goto("/matching.html");
+    // The provider never renders, but creating the MapLibre map needs WebGL2. The
+    // Node provider tests still cover it where the browser cannot create one.
+    test.skip(adapter === "maplibre" && !(await hasWebGL2(page)), NO_WEBGL2);
     await page.waitForFunction(() => !!window.matching);
     const png = await page.evaluate(() => window.matching.referencePng());
     // The live map also loads its own tiles; only the provider's requests use
