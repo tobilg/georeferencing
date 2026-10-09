@@ -3,7 +3,14 @@ import { createWorkerEngine } from "@georeferencing/core/engine";
 import type { MapAdapter } from "@georeferencing/core/map";
 import GeoreferencingWorker from "@georeferencing/core/worker?worker";
 import { Georeferencer, useGeoreferencer } from "@georeferencing/react";
-import { StrictMode, useCallback, useRef, useState } from "react";
+import {
+  lazy,
+  StrictMode,
+  Suspense,
+  useCallback,
+  useRef,
+  useState,
+} from "react";
 import { createRoot } from "react-dom/client";
 import "@georeferencing/react/styles.css";
 import "./style.css";
@@ -27,6 +34,8 @@ const LIBRARIES: Record<
   maplibre: { label: "MapLibre GL", load: () => import("./maps/maplibre.js") },
   leaflet: { label: "Leaflet", load: () => import("./maps/leaflet.js") },
 };
+const DemoMatching = lazy(() => import("./matching.js"));
+
 const requested = new URLSearchParams(window.location.search).get("map");
 const library: MapLibrary =
   requested && requested in LIBRARIES
@@ -46,6 +55,7 @@ declare global {
 
 function App({ createDemoMap }: { createDemoMap: CreateDemoMap }) {
   const demoMap = useRef<DemoMap | null>(null);
+  const [matchingEnabled, setMatchingEnabled] = useState(false);
   const [loadingExample, setLoadingExample] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const exampleAbort = useRef<AbortController | null>(null);
@@ -57,6 +67,11 @@ function App({ createDemoMap }: { createDemoMap: CreateDemoMap }) {
         digitizing: true,
         engine: createWorkerEngine({
           workerFactory: () => new GeoreferencingWorker(),
+          limits: {
+            maxInputPixels: 25_000_000,
+            maxFileBytes: 64 * 1024 * 1024,
+            maxMemoryBytes: 1024 * 1024 * 1024,
+          },
         }),
         exports: demoExports(() => demoMap.current?.capture?.()),
         // Demo persistence: accepted features stay in this browser's localStorage.
@@ -149,6 +164,33 @@ function App({ createDemoMap }: { createDemoMap: CreateDemoMap }) {
           controller={controller}
           map={adapter}
           controls={{ transformation: true }}
+          matchingPanel={
+            library === "openlayers" ? (
+              <details
+                className="rg-auto-match"
+                onToggle={(event) => {
+                  if (event.currentTarget.open) setMatchingEnabled(true);
+                }}
+              >
+                <summary>
+                  <span>Find points automatically</span>
+                  <span className="rg-hint">Optional</span>
+                </summary>
+                <div className="rg-auto-match-content">
+                  {matchingEnabled && demoMap.current && (
+                    <Suspense
+                      fallback={<p role="status">Loading matching controls…</p>}
+                    >
+                      <DemoMatching
+                        controller={controller}
+                        map={demoMap.current.map as import("ol/Map.js").default}
+                      />
+                    </Suspense>
+                  )}
+                </div>
+              </details>
+            ) : undefined
+          }
           emptyImageActions={
             <button
               type="button"

@@ -463,14 +463,15 @@ export class GeoreferencerController {
     this.commit(d, true);
   }
   /**
-   * Replace all pairs as one undoable alignment edit, for example after `.points` import.
+   * Replace all pairs and optionally the model as one undoable alignment edit, for example after `.points` import or reviewed matching.
    * Input is cloned.
    * @throws {@link GeoreferenceError} For invalid or duplicate points, or more points than the engine budget.
    */
-  replaceGcps(gcps: Gcp[]): void {
+  replaceGcps(gcps: Gcp[], model?: Model): void {
     this.requireAlign();
     const d = clone(this.state.document);
     d.gcps = clone(gcps);
+    if (model !== undefined) d.model = model;
     this.commitGcps(d);
   }
   /**
@@ -981,6 +982,24 @@ export class GeoreferencerController {
       }
       return false;
     }
+  }
+  /** Return full-resolution EXIF-normalized PNG bytes using the configured engine and budgets.
+   * Rejects if the image changes while normalization is running. Caller owns the returned blob.
+   */
+  async getNormalizedImage(signal?: AbortSignal): Promise<Blob> {
+    const file = this.file,
+      metadata = this.state.document.sourceImage;
+    if (!file || !metadata)
+      return fail("IMAGE", "Load source image bytes first.");
+    const result = await this.options.engine.run(
+      { kind: "normalize", file, metadata },
+      this.tag(),
+      { signal },
+    );
+    if (this.file !== file || signal?.aborted)
+      return fail("STALE", "Source image changed during normalization.");
+    if (!result.blob) return fail("ENGINE", "Normalization returned no image.");
+    return result.blob;
   }
   /**
    * Load a full-resolution display image for precise control-point placement, typically

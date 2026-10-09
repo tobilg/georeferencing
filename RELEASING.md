@@ -10,7 +10,7 @@ Releases are published by GitHub Actions. Pushing a `v*` tag runs
    documentation checks, and packing with a tarball-content check;
 3. publishes the tarballs that CI verified to npm with
    [trusted publishing](https://docs.npmjs.com/trusted-publishers/) (OIDC, no npm
-   token) and provenance: `@georeferencing/core` first, then `plugins`, `react`,
+   token) and provenance: `@georeferencing/core` first, then `plugins`, `matching`, `react`,
    `openlayers`, `maplibre` and `leaflet`;
 4. deploys the documentation site and the demo that CI built to Cloudflare Pages:
 
@@ -64,7 +64,7 @@ the dist-tags with `npm dist-tag ls @georeferencing/core`.
 
 ### npm trusted publishing
 
-For **each** public package (`core`, `plugins`, `react`, `openlayers`, `maplibre`
+For **each** public package (`core`, `plugins`, `matching`, `react`, `openlayers`, `maplibre`
 and `leaflet` in the `@georeferencing` scope), open the package's
 **Settings → Trusted publishing** on
 npmjs.com and add a GitHub Actions publisher:
@@ -145,3 +145,5 @@ pnpm test
 
 This needs Docker with the pinned QGIS image and native GDAL for the datum
 coordinates. Review fixture changes before committing them.
+
+Matching ships its pinned local OpenCV WASM and third-party notices. Run the packed consumer gate; rebuilding WASM is explicit (`scripts/matching/build-opencv.sh`), not an install-time network operation. Never add private `plans/` or derived `artifacts/matching/` fixtures to a release.

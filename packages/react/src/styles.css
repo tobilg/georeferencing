@@ -544,6 +544,10 @@
   padding: 0;
   border: 0;
 }
+/* Optional matching stays within the existing load/match workspace. */
+.rg-matching-slot[hidden] {
+  display: none;
+}
 @media (max-width: 720px) {
   .rg-guided {
     padding: 12px;

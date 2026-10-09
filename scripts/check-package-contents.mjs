@@ -41,12 +41,13 @@ for (const name of PUBLIC_PACKAGES) {
     );
     assert(
       /^package\/(package\.json|README\.md|LICENSE)$/.test(file) ||
-        /^package\/dist\/.+\.(js|d\.ts|css)$/.test(file) ||
+        /^package\/dist\/.+\.(js|d\.ts|css|wasm)$/.test(file) ||
         /^package\/dist\/(licenses\/[^/]+|.+\.js\.LEGAL\.txt)$/.test(file),
       `Unexpected file in ${name}: ${file}`,
     );
     assert(
-      !/docs\/(adr|evidence|delivery-report\.md|parity\.md)/.test(read(file)),
+      file.endsWith(".wasm") ||
+        !/docs\/(adr|evidence|delivery-report\.md|parity\.md)/.test(read(file)),
       `Private document reference in ${name}: ${file}`,
     );
   }
@@ -79,6 +80,48 @@ for (const name of PUBLIC_PACKAGES) {
     } else for (const target of Object.values(value)) checkExport(target);
   };
   checkExport(manifest.exports);
+  if (name === "matching") {
+    assert.equal(
+      manifest.exports["./react"],
+      undefined,
+      "Matching must not publish React UI",
+    );
+    assert.equal(
+      manifest.exports["./styles.css"],
+      undefined,
+      "Matching must not publish UI styles",
+    );
+    for (const section of [
+      "dependencies",
+      "peerDependencies",
+      "devDependencies",
+    ])
+      for (const dependency of [
+        "react",
+        "react-dom",
+        "@types/react",
+        "@types/react-dom",
+      ])
+        assert.equal(
+          manifest[section]?.[dependency],
+          undefined,
+          "Matching must not depend on React",
+        );
+    assert(
+      !files.some((file) => /\.(css|tsx)$|\/react\.(js|d\.ts)$/.test(file)),
+      "Matching archive contains UI assets",
+    );
+    for (const [file, contract] of [
+      ["dist/browser.d.ts", "Create a lazy, reusable browser-worker matcher"],
+      ["dist/node.d.ts", "Create a lazy Node 22.12+ matcher"],
+      ["dist/apply.d.ts", "Apply a reviewed candidate"],
+      ["dist/reference.d.ts", "Acquire a frozen reference snapshot"],
+    ])
+      assert(
+        read(`package/${file}`).includes(contract),
+        `Missing matching API documentation in ${file}`,
+      );
+  }
   results.push({
     package: manifest.name,
     version: manifest.version,

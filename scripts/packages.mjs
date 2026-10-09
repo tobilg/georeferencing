@@ -3,6 +3,7 @@
 export const PUBLIC_PACKAGES = [
   "core",
   "plugins",
+  "matching",
   "react",
   "openlayers",
   "maplibre",

@@ -14,6 +14,7 @@ is required.
 | --- | --- |
 | {@link "@georeferencing/core" @georeferencing/core} | Documents, controller, transforms, projections, worker processing, reference data and the map-adapter contract; no map library or UI dependency |
 | {@link "@georeferencing/plugins" @georeferencing/plugins} | Opt-in GeoTIFF, JPEG, PDF and data exports, each loaded only when used |
+| {@link "@georeferencing/matching" @georeferencing/matching} | Optional local plan matching in browser workers and Node, with ranked review and explicit control-point application |
 | {@link "@georeferencing/react" @georeferencing/react} | Ready-made editor, composable panels, subscription hook and scoped styles, for any map adapter |
 | {@link "@georeferencing/openlayers" @georeferencing/openlayers} | OpenLayers adapter: any projection, WFS GML and borrowed host layers |
 | {@link "@georeferencing/maplibre" @georeferencing/maplibre} | MapLibre GL JS adapter, drawing with Terra Draw |
@@ -37,6 +38,7 @@ For an end-to-end host application, begin with the [integration guide](./guides/
 | [Map adapters](./guides/map-adapters.md) | Choosing and configuring the OpenLayers, MapLibre and Leaflet adapters, Terra Draw, custom adapters and migration |
 | [Reference data](./guides/reference-data.md) | WFS axes/paging/authentication, borrowed layers, custom loaders, snapping and incomplete results |
 | [Optional export plugins](./guides/export-plugins.md) | Format configuration, results and custom exporters |
+| [Automatic plan matching](./guides/matching.md) | Reference snapshots, browser/Node matching, ranked alternatives, partial coverage and reviewed application |
 | [Lifecycle and saving](./guides/lifecycle-and-saving.md) | Image replacement, guards, confirmation, review, immutable saves and resource ownership |
 | [Coordinates and raster output](./guides/coordinates-and-output.md) | Pixel conventions, CRS spaces, models, residual formulas, resampling and output limits |
 | [Workers, packaging and deployment](./guides/workers-and-deployment.md) | Lazy assets, budgets, cancellation, npm packaging, CSP and static hosting |
@@ -61,6 +63,9 @@ lists its classes, interfaces, functions and types.
 | {@link "@georeferencing/plugins/serializers" @georeferencing/plugins/serializers} | Pure QGIS points, world-file and accuracy-report serializers |
 | [`@georeferencing/plugins/geotiff-worker`](./guides/workers-and-deployment.md#encoder-assets), [`/jpeg-worker`](./guides/workers-and-deployment.md#encoder-assets) | Bundled codec-worker scripts |
 | {@link "@georeferencing/react" @georeferencing/react} | Ready-made editor, panels, types and subscription hook |
+| {@link "@georeferencing/matching" @georeferencing/matching} | Shared pixel contracts, reference providers and explicit application |
+| {@link "@georeferencing/matching/browser" /matching/browser}, {@link "@georeferencing/matching/node" /matching/node} | Lazy browser and Node worker executors |
+| {@link "@georeferencing/matching/openlayers" /matching/openlayers} | Optional WMS/vector reference acquisition; hosts own matching UI and candidate rendering |
 | {@link "@georeferencing/openlayers" @georeferencing/openlayers} | `openLayers` adapter, `attachReferenceMap`, OpenLayers WFS/GML loading and map capture |
 | {@link "@georeferencing/maplibre" @georeferencing/maplibre} | `maplibre` adapter, `attachMapLibre` and map capture |
 | {@link "@georeferencing/leaflet" @georeferencing/leaflet} | `leaflet` adapter and `attachLeaflet` |

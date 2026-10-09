@@ -1,0 +1,56 @@
+/* Demo-owned matching review controls. */
+.rg-auto-match-panel {
+  min-width: 0;
+}
+.rg-editor .rg-matching-slot .rg-auto-match-panel h2 {
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+.rg-auto-match-panel fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.rg-auto-match-panel legend {
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.rg-match-source {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: 16px;
+}
+.rg-editor .rg-match-settings {
+  margin-top: 6px;
+}
+.rg-match-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 12px;
+}
+.rg-match-actions p {
+  flex: 1 1 200px;
+}
+.rg-match-result {
+  padding: 12px;
+  margin-top: 12px;
+  border: 1px solid var(--rg-border);
+  border-radius: 3px;
+  font-size: 12px;
+}
+.rg-match-result[data-selected="true"] {
+  border-color: var(--rg-accent);
+}
+.rg-match-diagnostics {
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

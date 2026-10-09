@@ -2,12 +2,13 @@
 
 Documentation for the browser georeferencing workspace: headless sessions and
 processing in `@georeferencing/core`, optional local exports in
-`@georeferencing/plugins`, and a React 19 editor in `@georeferencing/react`.
+`@georeferencing/plugins`, headless image matching in `@georeferencing/matching`,
+and a React 19 editor in `@georeferencing/react`.
 
 This README is the operating guide for the private
 **`@georeferencing/documentation`** workspace; the website's landing page is
 [`landing.md`](./landing.md), which documents only the public packages. The site is
-generated directly from the six public packages' TypeScript comments, alongside
+generated directly from the seven public packages' TypeScript comments, alongside
 handwritten guides and typechecked code examples. The same API comments ship in
 published `.d.ts` files for editor help. This workspace is not published to npm.
 
@@ -17,6 +18,7 @@ published `.d.ts` files for editor help. This workspace is not published to npm.
 | --- | --- | --- |
 | `@georeferencing/core` | Documents, fitting/warping, worker processing, references, the map-adapter contract and host-save coordination | Public library |
 | `@georeferencing/plugins` | Opt-in GeoTIFF, JPEG, PDF and data exports | Public library |
+| `@georeferencing/matching` | Optional browser/Node plan matching and reviewed application | Public library |
 | `@georeferencing/react` | Ready-made editor, composable panels, hook and scoped styles | Public library |
 | `@georeferencing/openlayers` | OpenLayers map adapter | Public library |
 | `@georeferencing/maplibre` | MapLibre GL JS map adapter | Public library |
@@ -44,6 +46,7 @@ For an end-to-end host application, begin with the [integration guide](./guides/
 | [Capabilities and limits](./guides/capabilities.md) | Models, formats, resource budgets and integration boundaries |
 | [Getting started](./guides/getting-started.md) | Installation, version alignment, a typed host-map integration and composable UI |
 | [Optional export plugins](./guides/export-plugins.md) | Format configuration, results and custom exporters |
+| [Automatic plan matching](./guides/matching.md) | Pixels, providers, browser/Node workers, ranked alternatives and explicit application |
 | [Coordinates and raster output](./guides/coordinates-and-output.md) | Pixel conventions, CRS spaces, models, residual formulas, resampling and output limits |
 | [Reference data](./guides/reference-data.md) | WFS axes/paging/authentication, borrowed layers, custom loaders, snapping and incomplete results |
 | [Lifecycle and saving](./guides/lifecycle-and-saving.md) | Image replacement, guards, confirmation, review, immutable saves and resource ownership |
@@ -69,6 +72,9 @@ and the [demo](https://github.com/tobilg/georeferencing/blob/main/packages/demo/
 | `@georeferencing/plugins/tiff` | Low-level TIFF encoding and validation |
 | `@georeferencing/plugins/report` | Low-level PDF creation and optional map capture |
 | `@georeferencing/plugins/geotiff-worker`, `/jpeg-worker` | Bundled codec-worker assets |
+| `@georeferencing/matching` | Pixel contracts, snapshots/WMS, coordinate helpers and explicit controller application; no UI |
+| `@georeferencing/matching/browser`, `/node` | Lazy executors for browser workers and Node worker threads |
+| `@georeferencing/matching/openlayers` | Optional WMS/loaded-vector reference acquisition |
 | `@georeferencing/react` | Ready-made editor, panels, types and subscription hook |
 | `@georeferencing/react/styles.css` | Optional scoped editor styles |
 
@@ -125,7 +131,8 @@ provides static navigation, search and light/dark presentation.
 | `dist/` | Generated HTML, assets and search index; ignored build output |
 
 The configured source entries cover core's headless, engine, encoder protocol and
-map-adapter APIs; the OpenLayers, MapLibre and Leaflet adapters; React's editor/panels; and the plugin root, format factories,
+map-adapter APIs; the OpenLayers, MapLibre and Leaflet adapters; React's editor/panels;
+matching's headless root, browser, Node and OpenLayers acquisition entries; and the plugin root, format factories,
 TIFF encoder, pure serializers and PDF report APIs. Private/protected/internal/external symbols are
 excluded. Source links point at the repository's `main` branch. The published site is
 deployed from each release tag.
@@ -177,7 +184,7 @@ pnpm test:docs
 The browser check requires Playwright Chromium. If it is absent, install it using
 `pnpm exec playwright install chromium` on a machine permitting downloads.
 The checker serves the generated output under `/api/`, traverses local links,
-assets and anchors, verifies source links for all six public packages, and
+assets and anchors, verifies source links for all seven public packages, and
 exercises guide code, navigation and search. It writes a local result artifact to
 `artifacts/reports/documentation-validation.json`.
 

@@ -1,0 +1,68 @@
+{
+  "name": "@georeferencing/matching",
+  "version": "0.5.0",
+  "description": "Optional local image matching in browser workers and Node",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
+    },
+    "./openlayers": {
+      "types": "./dist/openlayers.d.ts",
+      "import": "./dist/openlayers.js"
+    },
+    "./worker": "./dist/worker.js",
+    "./opencv.js": "./dist/vendor/opencv.js",
+    "./opencv.wasm": "./dist/vendor/opencv.wasm"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "peerDependencies": {
+    "@georeferencing/core": "workspace:^",
+    "ol": ">=10.10.0 <11"
+  },
+  "peerDependenciesMeta": {
+    "ol": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@georeferencing/core": "workspace:*",
+    "@types/node": "22.19.15",
+    "typescript": "5.9.3",
+    "ol": "10.10.0"
+  },
+  "scripts": {
+    "build": "node ../../scripts/build-package.mjs matching",
+    "dev": "node ../../scripts/build-package.mjs matching --watch",
+    "typecheck": "tsc --noEmit --noUnusedLocals --noUnusedParameters",
+    "prepack": "pnpm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tobilg/georeferencing.git",
+    "directory": "packages/matching"
+  }
+}

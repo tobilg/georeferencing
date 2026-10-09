@@ -77,12 +77,26 @@ The image picker/drop zone accepts up to 25 MiB, subject to the core decoded-pix
 and memory budgets. Unsupported inputs or degenerate fits are reported explicitly.
 No image is uploaded by the demo's processing path.
 
+## Optional automatic matching example
+
+In the OpenLayers demo, expand **Find points automatically** and choose **Load
+example image** to try a generated plan. Review a location and explicitly apply its
+points, then use **Run alignment** to continue through the same four-step workflow.
+
+`MatchingPanel.tsx`, `matching.css` and `matching-overlays.ts` belong to this private
+application. They demonstrate controls, progress/cancel, candidate presentation
+and explicit application using the headless `@georeferencing/matching` APIs; they
+are not published React components or styles. Hosts should build their own UI for
+their reference data and workflow. See the
+[matching guide](../documentation/guides/matching.md) for the integration contract.
+
 ## Pages and source layout
 
 | Path / file | Purpose |
 | --- | --- |
 | `/`, `index.html`, `main.tsx` | Guided Hamburg matching, manual preview, OpenStreetMap reference and local host saving |
 | `exports.ts` | Explicit format selection and lazy plugin configuration, including a current-map accessor for PDF |
+| `matching.tsx`, `MatchingPanel.tsx`, `matching-overlays.ts`, `matching.css` | Lazy demo-owned matching example, review controls, overlays and styles |
 | `style.css` | Demo layout, separate from the React package's scoped editor CSS |
 | `public/elbphilharmonie.webp` | Original Hamburg source image, loaded without alignment |
 | `vite.config.ts` | ES module workers, relative production base and workspace filesystem access |

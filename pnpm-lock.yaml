@@ -20,6 +20,9 @@ importers:
       '@georeferencing/maplibre':
         specifier: workspace:*
         version: link:packages/maplibre
+      '@georeferencing/matching':
+        specifier: workspace:*
+        version: link:packages/matching
       '@georeferencing/openlayers':
         specifier: workspace:*
         version: link:packages/openlayers
@@ -123,6 +126,9 @@ importers:
       '@georeferencing/maplibre':
         specifier: workspace:*
         version: link:../maplibre
+      '@georeferencing/matching':
+        specifier: workspace:*
+        version: link:../matching
       '@georeferencing/openlayers':
         specifier: workspace:*
         version: link:../openlayers
@@ -187,6 +193,9 @@ importers:
       '@georeferencing/maplibre':
         specifier: workspace:*
         version: link:../maplibre
+      '@georeferencing/matching':
+        specifier: workspace:*
+        version: link:../matching
       '@georeferencing/openlayers':
         specifier: workspace:*
         version: link:../openlayers
@@ -271,6 +280,21 @@ importers:
       terra-draw-maplibre-gl-adapter:
         specifier: 1.4.1
         version: 1.4.1(maplibre-gl@6.12.0)(terra-draw@1.36.0)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  packages/matching:
+    devDependencies:
+      '@georeferencing/core':
+        specifier: workspace:*
+        version: link:../core
+      '@types/node':
+        specifier: 22.19.15
+        version: 22.19.15
+      ol:
+        specifier: 10.10.0
+        version: 10.10.0
       typescript:
         specifier: 5.9.3
         version: 5.9.3

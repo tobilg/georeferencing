@@ -198,6 +198,9 @@ map library. The demo map uses OpenStreetMap tiles and needs an internet connect
 | `pnpm test:docs` | Strict TypeDoc build plus link and search checks |
 | `pnpm release:check` | Pack all packages and verify the tarball contents |
 
+`typecheck`, `release:check` and `build:demo` build the packages first. Their `:prebuilt`
+variants skip that step; CI builds once and then runs those.
+
 Repository layout:
 
 - [`packages/core`](packages/core), [`packages/plugins`](packages/plugins),
@@ -228,3 +231,13 @@ Releases are published from GitHub Actions; see [RELEASING.md](RELEASING.md).
 `dist/licenses`. The demo's example aerial image is © Freie und Hansestadt
 Hamburg, Landesbetrieb Geoinformation und Vermessung (LGV), dl-de/by-2-0; see
 [imagery credits](packages/demo/public/IMAGERY.md).
+
+
+### Optional automatic plan matching
+
+`@georeferencing/matching` searches a selected reference area locally in browser
+workers and Node. It returns ranked complete/partial placements, ambiguous
+alternatives or no reliable match, and applies reviewed points through the existing
+controller. The package ships no UI; applications build their own controls and
+previews. See the [matching package guide](packages/matching/README.md). In the
+OpenLayers demo, choose **Find points automatically** for a synthetic example.

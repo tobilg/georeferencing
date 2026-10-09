@@ -12,7 +12,8 @@
       "!**/pnpm-lock.yaml",
       "!artifacts/reports",
       "!packages/core/docs",
-      "!tests/fixtures"
+      "!tests/fixtures",
+      "!packages/matching/vendor"
     ]
   },
   "formatter": {

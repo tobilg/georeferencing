@@ -13,6 +13,30 @@ const prefix = "/api/";
 const files = await readdir(output, { recursive: true });
 const pages = files.filter((file) => file.endsWith(".html"));
 assert(pages.length > 50, "Expected complete public API pages");
+for (const route of [
+  "",
+  "browser/",
+  "node/",
+  "openlayers/",
+  "ImageMatcher/",
+  "MatchOptions/",
+  "ReferenceSnapshot/",
+  "MatchCandidate/",
+  "applyCandidate/",
+  "createWmsProvider/",
+])
+  assert(
+    pages.includes(`_georeferencing/matching/${route}index.html`),
+    `Missing matching API page: ${route}`,
+  );
+assert(
+  pages.includes("Automatic_plan_matching/index.html"),
+  "Missing matching guide",
+);
+assert(
+  !pages.some((file) => file.startsWith("_georeferencing/matching/react/")),
+  "Removed matching UI must not remain in generated API docs",
+);
 const htmlByFile = new Map(
   await Promise.all(
     pages.map(async (file) => [
@@ -54,7 +78,7 @@ for (const [path, html] of htmlByFile) {
     const link = new URL(decodeHtml(raw), url);
     if (link.origin !== origin) {
       if (
-        /\/blob\/main\/packages\/(core|plugins|react|openlayers|maplibre|leaflet)\/src\//.test(
+        /\/blob\/main\/packages\/(core|plugins|matching|react|openlayers|maplibre|leaflet)\/src\//.test(
           link.href,
         )
       ) {
@@ -78,6 +102,7 @@ assert(sourceLinks.length > 100, "Expected source links to the workspaces");
 for (const name of [
   "core",
   "plugins",
+  "matching",
   "react",
   "openlayers",
   "maplibre",
@@ -149,6 +174,7 @@ try {
     "Guides",
     "@georeferencing/core",
     "@georeferencing/plugins",
+    "@georeferencing/matching",
     "@georeferencing/react",
     "@georeferencing/openlayers",
     "@georeferencing/maplibre",
@@ -203,12 +229,45 @@ try {
     "openlayers/openLayers",
     "maplibre/maplibre",
     "leaflet/leaflet",
+    "matching/createSnapshot",
+    "matching/createWmsProvider",
+    "matching/applyCandidate",
+    "matching/browser/createBrowserMatcher",
+    "matching/node/createNodeMatcher",
+    "matching/openlayers/createOpenLayersProvider",
   ]) {
     await page.goto(`${base}_georeferencing/${route}/`);
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
       route.split("/").at(-1),
     );
   }
+  await page.goto(`${base}Automatic_plan_matching/`);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText(
+    "Automatic plan matching",
+  );
+  for (const example of [
+    "matchInBrowser",
+    "matchInNode",
+    "acquirePlanReference",
+    "prepareCandidateReview",
+    "applyReviewedLocation",
+  ])
+    await expect(
+      page.locator("pre").filter({ hasText: `function ${example}` }),
+    ).toBeVisible();
+  await expect(page.locator(".col-content")).toContainText(
+    "It ships no UI components",
+  );
+  await page.locator("#tsd-search-trigger").click();
+  await page.locator("#tsd-search-input").fill("ImageMatcher");
+  const matchingResult = page
+    .locator("#tsd-search-results a")
+    .filter({ hasText: "ImageMatcher" })
+    .first();
+  await expect(matchingResult).toBeVisible();
+  await matchingResult.click();
+  await expect(page).toHaveURL(/\/_georeferencing\/matching\/ImageMatcher\//);
+  await expect(page.locator("#match")).toBeAttached();
   assert.deepEqual(
     failures,
     [],
@@ -223,6 +282,7 @@ try {
     navigation: "passed",
     search: "passed",
     embeddedExample: "passed",
+    matchingApiAndGuide: "passed",
   };
   await mkdir(join(root, "artifacts/reports"), { recursive: true });
   await writeFile(

@@ -62,3 +62,32 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </StrictMode>,
 );
+
+// This function is called only after the manual/export consumer gates, proving lazy assets.
+Object.assign(window, {
+  consumerMatching: async () => {
+    const { createBrowserMatcher } = await import(
+      "@georeferencing/matching/browser"
+    );
+    const { createSnapshot } = await import("@georeferencing/matching");
+    const { syntheticPlan, cropPixels } = await import("./matching-fixture.js");
+    const image = syntheticPlan(),
+      matcher = createBrowserMatcher();
+    try {
+      return await matcher.match({
+        query: cropPixels(image, 130, 160, 250, 260),
+        reference: createSnapshot({
+          id: "packed",
+          width: 640,
+          height: 640,
+          extent: [0, 0, 640, 640],
+          crs: "EPSG:3857",
+          source: { id: "plan", revision: "1", layers: ["plan"] },
+          tiles: [{ ...image, x: 0, y: 0 }],
+        }),
+      });
+    } finally {
+      matcher.dispose();
+    }
+  },
+});

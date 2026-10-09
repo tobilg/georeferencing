@@ -17,7 +17,11 @@
     "../plugins/src/data.ts",
     "../plugins/src/tiff.ts",
     "../plugins/src/report.ts",
-    "../plugins/src/serializers.ts"
+    "../plugins/src/serializers.ts",
+    "../matching/src/index.ts",
+    "../matching/src/browser.ts",
+    "../matching/src/node.ts",
+    "../matching/src/openlayers.ts"
   ],
   "tsconfig": "tsconfig.api.json",
   "entryPointStrategy": "resolve",
@@ -34,7 +38,8 @@
     "./guides/lifecycle-and-saving.md",
     "./guides/coordinates-and-output.md",
     "./guides/workers-and-deployment.md",
-    "./guides/capabilities.md"
+    "./guides/capabilities.md",
+    "./guides/matching.md"
   ],
   "excludePrivate": true,
   "excludeProtected": true,
@@ -73,6 +78,7 @@
     "Guides",
     "@georeferencing/core",
     "@georeferencing/plugins",
+    "@georeferencing/matching",
     "@georeferencing/react",
     "@georeferencing/openlayers",
     "@georeferencing/maplibre",

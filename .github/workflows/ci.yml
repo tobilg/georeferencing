@@ -47,14 +47,18 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      # Built once here; the *:prebuilt scripts below reuse dist/ instead of rebuilding.
+      - name: Build packages
+        run: pnpm build:packages
+
       - name: Type check
-        run: pnpm typecheck
+        run: pnpm typecheck:prebuilt
 
       - name: Unit tests
         run: pnpm test
 
       - name: Pack and verify package contents
-        run: pnpm release:check
+        run: pnpm release:check:prebuilt
 
       - name: Upload npm packages
         uses: actions/upload-artifact@v7
@@ -66,7 +70,7 @@ jobs:
 
       # The demo is deployed on release; build it here so every change proves it builds.
       - name: Build demo
-        run: pnpm build:demo
+        run: pnpm build:demo:prebuilt
 
       - name: Upload demo site
         uses: actions/upload-artifact@v7
@@ -76,10 +80,15 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  # Playwright tests against the demo and harness in all three engines
+  # Playwright tests against the demo and harness, one engine per job so they run in parallel
   browser:
+    name: browser (${{ matrix.project }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium, firefox, webkit]
 
     steps:
       - name: Checkout repository
@@ -99,17 +108,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - name: Install Playwright ${{ matrix.project }}
+        run: pnpm exec playwright install --with-deps ${{ matrix.project }}
 
       - name: Browser tests
-        run: pnpm test:browser
+        run: pnpm test:browser --project=${{ matrix.project }}
 
       - name: Upload Playwright traces
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-traces
+          name: playwright-traces-${{ matrix.project }}
           path: test-results
           retention-days: 7
 

@@ -49,6 +49,7 @@ const directory = mkdtempSync(join(tmpdir(), "georeferencer-consumer-"));
 const run = (cmd, args) =>
   execFileSync(cmd, args, { cwd: directory, stdio: "inherit" });
 cpSync("tests/consumers/react", directory, { recursive: true });
+cpSync("tests/fixtures/matching.ts", join(directory, "matching-fixture.ts"));
 const pkg = JSON.parse(readFileSync(join(directory, "package.json"), "utf8"));
 writeFileSync(
   join(directory, "package.json"),
@@ -59,12 +60,18 @@ writeFileSync(
       dependencies: {
         ...pkg.dependencies,
         ...Object.fromEntries(
-          ["core", "plugins", "react", "openlayers", "maplibre", "leaflet"].map(
-            (name) => [
-              `@georeferencing/${name}`,
-              packageFiles[`@georeferencing/${name}`],
-            ],
-          ),
+          [
+            "core",
+            "plugins",
+            "matching",
+            "react",
+            "openlayers",
+            "maplibre",
+            "leaflet",
+          ].map((name) => [
+            `@georeferencing/${name}`,
+            packageFiles[`@georeferencing/${name}`],
+          ]),
         ),
       },
     },
@@ -250,6 +257,7 @@ writeFileSync(
     dependencies: {
       "@georeferencing/core": packageFiles["@georeferencing/core"],
       "@georeferencing/plugins": packageFiles["@georeferencing/plugins"],
+      "@georeferencing/matching": packageFiles["@georeferencing/matching"],
     },
     devDependencies: { typescript: pkg.devDependencies.typescript },
   }),
@@ -289,6 +297,25 @@ execFileSync(
     "api.ts",
   ],
   { cwd: headlessDirectory, stdio: "inherit" },
+);
+await bundle({
+  entryPoints: ["tests/fixtures/matching.ts"],
+  outfile: join(headlessDirectory, "matching-fixture.js"),
+  format: "esm",
+});
+cpSync(
+  "tests/consumers/matching-node.mjs",
+  join(headlessDirectory, "matching-node.mjs"),
+);
+execFileSync(process.execPath, ["matching-node.mjs"], {
+  cwd: headlessDirectory,
+  stdio: "inherit",
+});
+assert(
+  !Object.keys(headlessBundle.metafile.inputs).some((p) =>
+    /matching|opencv|wasm/.test(p),
+  ),
+  "Core eagerly imports matching",
 );
 const pluginTree = execFileSync(
   "pnpm",
@@ -456,7 +483,23 @@ try {
       `Missing ${format} codec request`,
     );
   }
+  assert(
+    !requests.some((url) => /opencv|\.wasm/.test(url)),
+    "WASM loaded before matching was requested",
+  );
+  const matching = await page.evaluate(() => window.consumerMatching());
+  assert.equal(matching.status, "matched");
+  assert(matching.candidates[0].independentInliers >= 12);
+  assert(
+    requests.some((url) => /\.wasm/.test(url)),
+    "Packaged WASM was not emitted/loaded",
+  );
   const evidence = {
+    matching: {
+      status: matching.status,
+      backend: matching.diagnostics.backend,
+      independentInliers: matching.candidates[0].independentInliers,
+    },
     packageName: corePkg.name,
     packages: packs,
     headlessDirectory,

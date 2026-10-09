@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 await Promise.all(
   [
     "@georeferencing/core",
+    "@georeferencing/matching",
+    "@georeferencing/matching/browser",
     "@georeferencing/core/core",
     "@georeferencing/plugins",
     "@georeferencing/plugins/geotiff",

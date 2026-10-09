@@ -18,6 +18,7 @@
     "../plugins/src",
     "../openlayers/src",
     "../maplibre/src",
-    "../leaflet/src"
+    "../leaflet/src",
+    "../matching/src"
   ]
 }

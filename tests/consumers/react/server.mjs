@@ -22,6 +22,7 @@ export async function startServer(directory) {
         "Content-Type",
         {
           ".js": "text/javascript",
+          ".wasm": "application/wasm",
           ".css": "text/css",
           ".html": "text/html",
           ".png": "image/png",
@@ -29,7 +30,7 @@ export async function startServer(directory) {
       );
       res.setHeader(
         "Content-Security-Policy",
-        "default-src 'self'; script-src 'self'; worker-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'",
+        "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'",
       );
       res.end(body);
     } catch {

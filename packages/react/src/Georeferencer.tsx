@@ -43,6 +43,8 @@ export interface GeoreferencerProps {
    * image/map tabs.
    */
   referenceView?: ReactNode;
+  /** Optional lazy matching panel supplied by the host. In the guided layout it appears below the image/map during loading and point matching, and stays mounted while hidden in later steps. */
+  matchingPanel?: ReactNode;
   /**
    * Optional controls of the guided layout. Omitted flags use {@link MINIMAL_CONTROLS};
    * pass {@link ALL_CONTROLS} for every expert control. The classic layout always shows
@@ -120,6 +122,7 @@ export function Georeferencer({
   onExport,
   formatError,
   referenceView,
+  matchingPanel,
   controls: controlOverrides = NO_CONTROLS,
   emptyImageActions,
 }: GeoreferencerProps) {
@@ -535,6 +538,11 @@ export function Georeferencer({
               {referenceView}
             </div>
           </div>
+          {matchingPanel && (
+            <div className="rg-matching-slot" hidden={step > 1}>
+              {matchingPanel}
+            </div>
+          )}
           {step === 2 && s.fit && (
             <div className="rg-review-panels">
               <section className="rg-card">
@@ -758,6 +766,7 @@ export function Georeferencer({
           </details>
         </>
       )}
+      {!guided && matchingPanel}
       <div className="rg-status" role="status" aria-live="polite">
         {guided
           ? s.loading === "running"

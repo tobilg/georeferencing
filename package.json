@@ -11,6 +11,7 @@
     "build": "pnpm -r run build",
     "build:core": "pnpm --filter @georeferencing/core run build",
     "build:demo": "pnpm --filter @georeferencing/demo... run build",
+    "build:demo:prebuilt": "pnpm --filter @georeferencing/demo run build",
     "lint": "biome check . --error-on-warnings",
     "lint:fix": "biome check --write . --error-on-warnings",
     "format": "biome format --write .",
@@ -18,7 +19,8 @@
     "test": "vitest run",
     "test:browser": "playwright test",
     "test:consumer": "node scripts/consumer.mjs",
-    "typecheck": "pnpm build:packages && pnpm -r run typecheck && tsc --noEmit",
+    "typecheck": "pnpm build:packages && pnpm typecheck:prebuilt",
+    "typecheck:prebuilt": "pnpm -r run typecheck && tsc --noEmit",
     "docs:build": "pnpm build:packages && pnpm --filter @georeferencing/documentation run build",
     "docs:check": "pnpm --filter @georeferencing/documentation run check",
     "docs:dev": "pnpm build:packages && pnpm --filter @georeferencing/documentation run dev",
@@ -26,9 +28,12 @@
     "test:docs": "pnpm docs:build && pnpm --filter @georeferencing/documentation run test",
     "build:packages": "pnpm --filter \"@georeferencing/*\" --filter \"!@georeferencing/demo\" --filter \"!@georeferencing/documentation\" run build",
     "pack:packages": "pnpm build:packages && node scripts/pack-packages.mjs",
-    "release:check": "pnpm pack:packages && node scripts/check-package-contents.mjs",
+    "release:check": "pnpm build:packages && pnpm release:check:prebuilt",
+    "release:check:prebuilt": "node scripts/pack-packages.mjs && node scripts/check-package-contents.mjs",
     "dev:harness": "vite --config tests/browser/harness/vite.config.ts",
-    "version:set": "node scripts/set-version.mjs"
+    "version:set": "node scripts/set-version.mjs",
+    "test:matching": "pnpm build:packages && vitest run tests/matching.test.ts tests/matching-sift.test.ts tests/matching-akaze.test.ts tests/matching-apply.test.ts tests/matching-lifecycle.test.ts",
+    "benchmark:matching": "pnpm build:packages && node scripts/matching/benchmark.mjs && node scripts/matching/resources.mjs"
   },
   "devDependencies": {
     "@georeferencing/core": "workspace:*",
@@ -56,6 +61,7 @@
     "@georeferencing/leaflet": "workspace:*",
     "leaflet": "1.9.4",
     "@types/leaflet": "1.9.22",
-    "terra-draw-leaflet-adapter": "1.3.0"
+    "terra-draw-leaflet-adapter": "1.3.0",
+    "@georeferencing/matching": "workspace:*"
   }
 }

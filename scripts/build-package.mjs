@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   copyFileSync,
   existsSync,
@@ -34,11 +35,19 @@ async function compile() {
       ? ["src/engine/worker.ts"]
       : name === "plugins"
         ? ["src/workers/geotiff.ts", "src/workers/jpeg.ts"]
-        : [];
+        : name === "matching"
+          ? ["src/worker.ts"]
+          : [];
   const result = workers.length
     ? await build({
         entryPoints: workers,
-        outdir: name === "core" ? "dist/engine" : "dist/workers",
+        outdir:
+          name === "core"
+            ? "dist/engine"
+            : name === "matching"
+              ? "dist"
+              : "dist/workers",
+        external: name === "matching" ? ["./vendor/opencv.js"] : [],
         bundle: true,
         format: "esm",
         platform: "browser",
@@ -49,10 +58,30 @@ async function compile() {
         metafile: true,
       })
     : undefined;
+  if (name === "matching") {
+    mkdirSync("dist/vendor", { recursive: true });
+    const provenance = JSON.parse(
+      readFileSync("vendor/provenance.json", "utf8"),
+    );
+    for (const file of ["opencv.js", "opencv.wasm"]) {
+      if (
+        createHash("sha256")
+          .update(readFileSync(join("vendor", file)))
+          .digest("hex") !== provenance.hashes[file]
+      )
+        throw Error(`OpenCV artifact hash mismatch: ${file}`);
+      copyFileSync(join("vendor", file), join("dist/vendor", file));
+    }
+  }
   if (existsSync("src/styles.css"))
     copyFileSync("src/styles.css", "dist/styles.css");
   mkdirSync("dist/licenses", { recursive: true });
   const inventory = new Map();
+  if (name === "matching")
+    inventory.set("opencv", {
+      version: "4.12.0",
+      license: "Apache-2.0; see opencv-NOTICE",
+    });
   for (const input of Object.keys(result?.metafile.inputs ?? {}).filter((p) =>
     p.includes("node_modules/"),
   )) {
@@ -88,6 +117,13 @@ async function compile() {
     "dist/licenses/inventory.json",
     `${JSON.stringify(Object.fromEntries(inventory), null, 2)}\n`,
   );
+  if (name === "matching") {
+    for (const file of ["LICENSE", "NOTICE", "provenance.json"])
+      copyFileSync(
+        join("vendor", file),
+        join("dist/licenses", `opencv-${file}`),
+      );
+  }
   copyFileSync(join(workspaceRoot, "LICENSE"), "LICENSE");
   // Remove the legacy generated copy. Internal project records never ship.
   if (name === "core") rmSync("docs", { recursive: true, force: true });
